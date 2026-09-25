@@ -295,3 +295,7 @@
   .pg-menu .cattabs-wrap{padding:10px 46px;}
   .pg-menu .item-grid{grid-template-columns:1fr;}
 }
+
+/* items switched off in the admin inventory page */
+.pg-menu .item-card.sold-out .item-img{filter:grayscale(1);opacity:.55;}
+.pg-menu .item-add:disabled{background:#8B93AD;color:#fff;cursor:not-allowed;}

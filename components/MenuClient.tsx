@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { categories, type MenuItem } from "@/data/menu";
+import type { MenuItem } from "@/data/menu";
+import { useMenu } from "./MenuProvider";
 import CartPanel from "./CartPanel";
 import ItemCard from "./ItemCard";
 import ItemModal from "./ItemModal";
@@ -10,6 +11,7 @@ import ItemModal from "./ItemModal";
 const hashAlias: Record<string, string> = { chicken: "burgers", beef: "burgers" };
 
 export default function MenuClient() {
+  const { categories } = useMenu();
   const [cat, setCat] = useState(categories[0].id);
   const [selected, setSelected] = useState<MenuItem | null>(null);
   const tabsRef = useRef<HTMLDivElement>(null);
@@ -21,7 +23,7 @@ export default function MenuClient() {
     const id = hashAlias[raw] || raw;
     // eslint-disable-next-line react-hooks/set-state-in-effect -- the URL hash is browser-only, so it can only be read after mount
     if (categories.some((c) => c.id === id)) setCat(id);
-  }, []);
+  }, [categories]);
 
   const showCategory = (id: string, el?: HTMLElement) => {
     setCat(id);

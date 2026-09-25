@@ -1,0 +1,71 @@
+.pg-track{
+  --paper:#F1F3F9;
+  --ink:#0A1230;
+  --amber:#8AB4FF;
+  --rust:#B3122B;
+  --green:#3E8E5A;
+  --muted:#5A6485;
+  --line:rgba(10,18,48,.12);
+  min-height:100vh;background:var(--paper);color:var(--ink);
+  font-family:'Mulish',-apple-system,"Segoe UI",Roboto,sans-serif;font-size:15px;line-height:1.6;
+}
+.pg-track *{box-sizing:border-box;}
+.pg-track a{text-decoration:none;color:inherit;}
+.pg-track h1,.pg-track h2,.pg-track p{margin:0;}
+
+.pg-track .tnav{display:flex;align-items:center;justify-content:space-between;gap:16px;height:78px;padding:0 clamp(20px,3vw,46px);background:var(--ink);color:#fff;}
+.pg-track .tlogo{display:block;height:32px;width:auto;filter:brightness(1.25) saturate(1.1);}
+.pg-track .tback{font-size:12.5px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#9CA7CC;}
+.pg-track .tback:hover{color:#fff;}
+
+.pg-track .twrap{max-width:640px;margin:0 auto;padding:44px 20px 70px;}
+.pg-track .tdisplay{
+  font-family:'Exo 2',Impact,sans-serif;font-weight:800;font-style:italic;text-transform:uppercase;
+  font-size:clamp(28px,5vw,40px);line-height:1;margin-bottom:26px;transform:skewX(-6deg);transform-origin:left bottom;
+}
+.pg-track .tdisplay span{color:var(--rust);}
+
+.pg-track .tcard{background:#fff;border-radius:14px;padding:28px;box-shadow:0 10px 30px rgba(10,18,48,.07);}
+.pg-track .tsub{color:var(--muted);margin-bottom:8px;}
+.pg-track label{display:block;font-size:12px;font-weight:700;margin:16px 0 7px;}
+.pg-track input{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:8px;font:inherit;background:#fff;}
+.pg-track input:focus{outline:0;border-color:var(--rust);}
+.pg-track .terr{color:var(--rust);font-weight:700;font-size:13.5px;margin-top:14px;}
+.pg-track .tbtn{
+  width:100%;margin-top:22px;padding:15px;border:0;border-radius:4px;background:var(--rust);color:#fff;
+  font:inherit;font-weight:700;font-size:12.5px;letter-spacing:.11em;text-transform:uppercase;cursor:pointer;
+}
+.pg-track .tbtn:hover{background:#8F0D22;}
+.pg-track .tbtn:disabled{opacity:.6;cursor:default;}
+
+.pg-track .thead{display:flex;justify-content:space-between;gap:16px;padding-bottom:20px;border-bottom:1px solid var(--line);}
+.pg-track .tlabel{display:block;font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);}
+.pg-track .tno{font-family:'Exo 2',sans-serif;font-style:italic;font-size:26px;}
+.pg-track .tright{text-align:right;}
+.pg-track .tright b{font-size:18px;}
+
+.pg-track .tsteps{list-style:none;margin:28px 0 8px;padding:0;}
+.pg-track .tsteps li{position:relative;display:flex;align-items:center;gap:16px;padding-bottom:26px;color:var(--muted);}
+.pg-track .tsteps li:last-child{padding-bottom:0;}
+/* the connector between one dot and the next */
+.pg-track .tsteps li:not(:last-child)::before{content:"";position:absolute;left:15px;top:32px;bottom:0;width:2px;background:var(--line);}
+.pg-track .tsteps li.done:not(:last-child)::before{background:var(--green);}
+.pg-track .tdot{
+  flex:none;width:32px;height:32px;border-radius:50%;display:grid;place-items:center;
+  font-size:13px;font-weight:800;background:var(--paper);border:2px solid var(--line);
+}
+.pg-track .tstep{font-weight:700;}
+.pg-track .tsteps li.done{color:var(--ink);}
+.pg-track .tsteps li.done .tdot{background:var(--green);border-color:var(--green);color:#fff;}
+.pg-track .tsteps li.now{color:var(--ink);}
+.pg-track .tsteps li.now .tdot{background:var(--rust);border-color:var(--rust);color:#fff;animation:tpulse 1.8s ease-out infinite;}
+@keyframes tpulse{0%{box-shadow:0 0 0 0 rgba(179,18,43,.4);}100%{box-shadow:0 0 0 12px rgba(179,18,43,0);}}
+@media (prefers-reduced-motion:reduce){.pg-track .tsteps li.now .tdot{animation:none;}}
+
+.pg-track .thint{margin:22px 0 0;padding:14px 16px;background:var(--paper);border-radius:8px;font-weight:600;}
+.pg-track .tcancel{margin:24px 0 0;padding:14px 16px;background:rgba(179,18,43,.08);color:var(--rust);border-radius:8px;font-weight:700;}
+
+.pg-track .titems{margin-top:26px;padding-top:20px;border-top:1px solid var(--line);}
+.pg-track .titems h2{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
+.pg-track .titem{display:flex;justify-content:space-between;gap:16px;padding:5px 0;font-size:14px;}
+.pg-track .tlink{margin-top:22px;background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--rust);cursor:pointer;text-decoration:underline;}

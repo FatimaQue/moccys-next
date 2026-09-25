@@ -3,18 +3,33 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { DELIVERY_FEE } from "@/lib/pricing";
 import { money, useCart } from "./CartProvider";
+import { LAST_ORDER_KEY } from "./TrackClient";
 
-const DELIVERY_FEE = 59;
+
+// the restaurant's own account, shown to customers who choose bank transfer (set in .env.local; the option hides if it's empty)
+const BANK = {
+  name: process.env.NEXT_PUBLIC_BANK_NAME || "",
+  title: process.env.NEXT_PUBLIC_BANK_ACCOUNT_TITLE || "",
+  account: process.env.NEXT_PUBLIC_BANK_ACCOUNT_NUMBER || "",
+  iban: process.env.NEXT_PUBLIC_BANK_IBAN || "",
+};
 
 export default function CheckoutClient() {
   const { cart, setQty, remove, clear } = useCart();
   const [orderType, setOrderType] = useState<"delivery" | "pickup">("delivery");
-  const [pay, setPay] = useState<"cod" | "easypaisa">("cod");
+  const [pay, setPay] = useState<"cod" | "easypaisa" | "jazzcash" | "bank">("cod");
   const [mobile, setMobile] = useState("");
-  const [easypaisa, setEasypaisa] = useState("");
+  const [wallet, setWallet] = useState(""); // the EasyPaisa / JazzCash number
+  const bank = pay === "bank";
+  const walletName = pay === "jazzcash" ? "JazzCash" : "EasyPaisa";
+  // the wallet number is the customer's own account; a checkbox that copies their contact number makes no sense for a bank transfer
+  const choose = (m: typeof pay) => { setPay(m); if (m === "bank") { setSame(false); setWallet(""); } };
   const [same, setSame] = useState(false);
   const [orderId, setOrderId] = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const delivery = orderType === "delivery";
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
@@ -22,11 +37,39 @@ export default function CheckoutClient() {
   const total = subtotal + fee;
   const empty = cart.length === 0;
 
-  const submit = (e: React.FormEvent<HTMLFormElement>) => {
+  const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!e.currentTarget.reportValidity() || empty) return;
-    setOrderId("#" + (124000 + Math.floor(Math.random() * 900)));
-    clear();
+    const form = e.currentTarget;
+    if (!form.reportValidity() || empty || submitting) return;
+    const val = (id: string) => (form.elements.namedItem(id) as HTMLInputElement | null)?.value ?? "";
+
+    setSubmitting(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/orders", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: val("fEmail"), name: val("fName"), mobile, orderType,
+          city: val("fCity"), address: val("fAddress"), notes: val("fNotes"),
+          payMethod: pay, wallet,
+          items: cart.map((i) => ({ name: i.name, qty: i.qty, addon: !!i.addon })),
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || "Could not place your order. Please try again.");
+        return;
+      }
+      // hand the order to the tracking page so it opens straight to it
+      try { localStorage.setItem(LAST_ORDER_KEY, JSON.stringify({ orderNo: data.orderNo, mobile })); } catch { /* storage blocked: they can type it in */ }
+      setOrderId(data.orderNo);
+      clear();
+    } catch {
+      setError("Network problem. Please check your connection and try again.");
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -57,7 +100,10 @@ export default function CheckoutClient() {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M8 12.5l2.5 2.5L16 9.5" /></svg>
               <h1 className="display">Order <span className="rust">placed!</span></h1>
               <p>Thanks for ordering with mccoy&apos;s. Your order {orderId} is on its way to the kitchen.</p>
-              <Link href="/menu" className="btn btn-rust">Back to Menu</Link>
+              <div style={{ display: "flex", gap: 12, justifyContent: "center", flexWrap: "wrap" }}>
+                <Link href="/track" className="btn btn-rust">Track Order</Link>
+                <Link href="/menu" className="btn btn-out">Back to Menu</Link>
+              </div>
             </div>
           ) : (
             <>
@@ -79,7 +125,7 @@ export default function CheckoutClient() {
                         <input
                           type="tel" id="fMobile" placeholder="03XXXXXXXXX" pattern="03[0-9]{9}" required
                           value={mobile}
-                          onChange={(e) => { setMobile(e.target.value); if (same) setEasypaisa(e.target.value); }}
+                          onChange={(e) => { setMobile(e.target.value); if (same) setWallet(e.target.value); }}
                         />
                       </div>
                       <div className="field full">
@@ -118,31 +164,51 @@ export default function CheckoutClient() {
                     <h2>Payment Methods</h2>
                     <div className="pay-options">
                       <label className={"pay-opt" + (pay === "cod" ? " on" : "")}>
-                        <input type="radio" name="payMethod" value="cod" checked={pay === "cod"} onChange={() => setPay("cod")} />
+                        <input type="radio" name="payMethod" value="cod" checked={pay === "cod"} onChange={() => choose("cod")} />
                         <span>Cash on Delivery</span>
                       </label>
                       <label className={"pay-opt" + (pay === "easypaisa" ? " on" : "")}>
-                        <input type="radio" name="payMethod" value="easypaisa" checked={pay === "easypaisa"} onChange={() => setPay("easypaisa")} />
+                        <input type="radio" name="payMethod" value="easypaisa" checked={pay === "easypaisa"} onChange={() => choose("easypaisa")} />
                         <span>Pay with Easypaisa</span>
                       </label>
+                      <label className={"pay-opt" + (pay === "jazzcash" ? " on" : "")}>
+                        <input type="radio" name="payMethod" value="jazzcash" checked={pay === "jazzcash"} onChange={() => choose("jazzcash")} />
+                        <span>Pay with JazzCash</span>
+                      </label>
+                      {BANK.account && (
+                        <label className={"pay-opt" + (bank ? " on" : "")}>
+                          <input type="radio" name="payMethod" value="bank" checked={bank} onChange={() => choose("bank")} />
+                          <span>Bank Transfer</span>
+                        </label>
+                      )}
                     </div>
 
-                    <div className={"pay-easypaisa" + (pay === "easypaisa" ? "" : " hidden")}>
+                    <div className={"pay-easypaisa" + (pay === "cod" ? " hidden" : "")}>
+                      {bank && (
+                        <div className="bank-box">
+                          <b>Transfer the total to:</b>
+                          {BANK.name && <div><span>Bank</span>{BANK.name}</div>}
+                          {BANK.title && <div><span>Account title</span>{BANK.title}</div>}
+                          <div><span>Account number</span>{BANK.account}</div>
+                          {BANK.iban && <div><span>IBAN</span>{BANK.iban}</div>}
+                          <small>Then enter your account number or the transfer reference below so we can match your payment.</small>
+                        </div>
+                      )}
                       <div className="field">
-                        <label htmlFor="fEasypaisa">EasyPaisa Number</label>
+                        <label htmlFor="fEasypaisa">{bank ? "Your Account Number / Transfer Reference" : `${walletName} Number`}</label>
                         <input
-                          type="tel" id="fEasypaisa" placeholder="03XXXXXXXXX"
-                          required={pay === "easypaisa"} disabled={same}
-                          value={easypaisa} onChange={(e) => setEasypaisa(e.target.value)}
+                          type={bank ? "text" : "tel"} id="fEasypaisa" placeholder={bank ? "Account number or reference" : "03XXXXXXXXX"}
+                          required={pay !== "cod"} disabled={same && !bank} minLength={bank ? 4 : undefined} maxLength={bank ? 30 : undefined}
+                          value={wallet} onChange={(e) => setWallet(e.target.value)}
                         />
                       </div>
-                      <label className="checkbox-row">
+                      {!bank && <label className="checkbox-row">
                         <input
                           type="checkbox" id="fSameNumber" checked={same}
-                          onChange={(e) => { setSame(e.target.checked); if (e.target.checked) setEasypaisa(mobile); }}
+                          onChange={(e) => { setSame(e.target.checked); if (e.target.checked) setWallet(mobile); }}
                         />
                         Same as Contact Number
-                      </label>
+                      </label>}
                     </div>
                   </form>
                 </div>
@@ -189,7 +255,8 @@ export default function CheckoutClient() {
                       <div><span>Delivery Charges</span><span>{money(fee)}</span></div>
                       <div className="grand"><span>Total</span><b>{money(total)}</b></div>
                     </div>
-                    <button type="submit" form="orderForm" className="btn btn-rust">Place Order</button>
+                    {error && <p role="alert" style={{ color: "var(--rust)", fontWeight: 700, margin: "0 0 12px" }}>{error}</p>}
+                    <button type="submit" form="orderForm" className="btn btn-rust" disabled={submitting}>{submitting ? "Placing order…" : "Place Order"}</button>
                   </>
                 )}
               </aside>

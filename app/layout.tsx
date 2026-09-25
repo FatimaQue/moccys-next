@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import { CartProvider } from "@/components/CartProvider";
+import { MenuProvider } from "@/components/MenuProvider";
+import { getMenuState } from "@/lib/menuStore";
 
 export const metadata: Metadata = {
   title: "mccoy's — Full Menu",
   description: "Burgers, pizza, pasta and bundled deals from mccoy's.",
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default async function RootLayout({ children }: { children: React.ReactNode }) {
+  const menu = await getMenuState();
   return (
     <html lang="en">
       <head>
@@ -21,7 +24,9 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body>
-        <CartProvider>{children}</CartProvider>
+        <MenuProvider custom={menu.custom} unavailable={menu.unavailable}>
+          <CartProvider>{children}</CartProvider>
+        </MenuProvider>
       </body>
     </html>
   );

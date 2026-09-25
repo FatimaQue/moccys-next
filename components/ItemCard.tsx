@@ -1,9 +1,14 @@
+"use client";
+
 import Image from "next/image";
 import type { MenuItem } from "@/data/menu";
+import { useMenu } from "./MenuProvider";
 
 export default function ItemCard({ item, onAdd }: { item: MenuItem; onAdd: (item: MenuItem) => void }) {
+  const { isAvailable } = useMenu();
+  const out = !isAvailable(item.name);
   return (
-    <article className="item-card">
+    <article className={"item-card" + (out ? " sold-out" : "")}>
       <div className="item-img">
         <Image
           src={item.img}
@@ -23,7 +28,7 @@ export default function ItemCard({ item, onAdd }: { item: MenuItem; onAdd: (item
         <p>{item.desc}</p>
         <div className="item-foot">
           <div className="item-price"><b>{item.priceLabel}</b></div>
-          <button className="item-add" onClick={() => onAdd(item)}>+ Add to Cart</button>
+          <button className="item-add" disabled={out} onClick={() => onAdd(item)}>{out ? "Unavailable" : "+ Add to Cart"}</button>
         </div>
       </div>
     </article>

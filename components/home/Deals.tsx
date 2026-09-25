@@ -6,8 +6,10 @@ import { useRef } from "react";
 import { deals } from "@/data/home";
 import type { MenuItem } from "@/data/menu";
 import { findMenuItem } from "@/data/menuLookup";
+import { useMenu } from "../MenuProvider";
 
 export default function Deals({ onPick }: { onPick: (item: MenuItem) => void }) {
+  const { isAvailable } = useMenu();
   const rowRef = useRef<HTMLDivElement>(null);
 
   const scrollDeals = (dir: number) => {
@@ -47,9 +49,9 @@ export default function Deals({ onPick }: { onPick: (item: MenuItem) => void }) 
                     <span className="deal-price"><span>Rs.</span>{d.priceLabel}</span>
                     <button
                       className="btn btn-rust btn-sm cart-add" data-magnet
-                      onClick={() => onPick(findMenuItem(d.name)!)}
+                      disabled={!isAvailable(d.name)} onClick={() => onPick(findMenuItem(d.name)!)}
                     >
-                      Add to Cart
+                      {isAvailable(d.name) ? "Add to Cart" : "Unavailable"}
                     </button>
                   </div>
                 </div>

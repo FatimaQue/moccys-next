@@ -3,11 +3,13 @@
 import { showcase } from "@/data/home";
 import type { MenuItem } from "@/data/menu";
 import { findMenuItem } from "@/data/menuLookup";
+import { useMenu } from "../MenuProvider";
 import { TearBottom, TearTop } from "./Tears";
 
 /* The pinned scroll-driven slider is driven by GSAP in HomeClient (it needs to see every section at once);
    this component only renders the markup it animates, and reports the active item so the dots can follow. */
 export default function Showcase({ active, onPick }: { active: number; onPick: (item: MenuItem) => void }) {
+  const { isAvailable } = useMenu();
   return (
     <section className="showcase" id="showcase">
       <div className="showcase-sticky">
@@ -37,9 +39,9 @@ export default function Showcase({ active, onPick }: { active: number; onPick: (
                   <div className="show-opts">
                     <button
                       className="btn btn-rust btn-sm cart-add" data-magnet
-                      onClick={() => onPick(menuItem)}
+                      disabled={!isAvailable(menuItem.name)} onClick={() => onPick(menuItem)}
                     >
-                      + Add to Cart
+                      {isAvailable(menuItem.name) ? "+ Add to Cart" : "Unavailable"}
                     </button>
                   </div>
                 </div>

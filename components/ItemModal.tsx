@@ -5,12 +5,14 @@ import { useEffect, useRef, useState } from "react";
 import { ADDONS } from "@/data/addons";
 import type { MenuItem, Option } from "@/data/menu";
 import { money, useCart } from "./CartProvider";
+import { useMenu } from "./MenuProvider";
 import "./ItemModal.css";
 
 const addonByName = Object.fromEntries(ADDONS.flatMap((g) => g.items).map((i) => [i.name, i]));
 
 export default function ItemModal({ item, onClose, onAdded }: { item: MenuItem; onClose: () => void; onAdded?: () => void }) {
   const { add } = useCart();
+  const { isAvailable } = useMenu();
   const boxRef = useRef<HTMLDivElement>(null);
 
   // cards without options add themselves under their own name and price
@@ -93,7 +95,7 @@ export default function ItemModal({ item, onClose, onAdded }: { item: MenuItem; 
 
         <div className="pm-addons">
           <h4>Add-ons <span>(Optional)</span></h4>
-          {ADDONS.filter((g) => !g.only || g.only === item.name).map((g) => (
+          {ADDONS.filter((g) => !g.only || g.only === item.name).map((g) => ({ ...g, items: g.items.filter((a) => isAvailable(a.name)) })).filter((g) => g.items.length).map((g) => (
             <div className="pm-agroup" key={g.group}>
               <h5>{g.group}</h5>
               <div className="pm-alist">
