@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export default function LoginClient() {
   const router = useRouter();
@@ -16,9 +16,44 @@ export default function LoginClient() {
     setOpen(next);
     if (next) phoneRef.current?.focus();
   };
-  const sendCode = () => {
-    if (phone.trim()) router.push("/");
+  const [wa, setWa] = useState<{ sid: string; code: string; url: string } | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  // customer proves the number by sending a WhatsApp message; we poll until the webhook marks it verified
+  const sendCode = async () => {
+    if (!phone.trim() || busy) return;
+    setBusy(true); setError("");
+    try {
+      const res = await fetch("/api/auth/wa/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone }) });
+      const data = await res.json();
+      if (!res.ok) { setError(data.error || "Something went wrong. Please try again."); return; }
+      setWa(data);
+      window.open(data.url, "_blank", "noopener");
+    } catch {
+      setError("Network problem. Please try again.");
+    } finally {
+      setBusy(false);
+    }
   };
+
+  useEffect(() => {
+    if (!wa) return;
+    let stopped = false;
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch("/api/auth/wa/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sid: wa.sid }) });
+        const data = await res.json();
+        if (stopped) return;
+        if (data.status === "ok") { stopped = true; clearInterval(timer); router.push("/"); router.refresh(); }
+        else if (data.status === "expired" || data.status === "invalid" || data.error) {
+          stopped = true; clearInterval(timer); setWa(null);
+          setError(data.error || "That code expired. Please try again.");
+        }
+      } catch { /* keep polling */ }
+    }, 2000);
+    return () => { stopped = true; clearInterval(timer); };
+  }, [wa, router]);
 
   return (
     <div className="login-card">
@@ -39,11 +74,25 @@ export default function LoginClient() {
 
             <div className={"phone-reveal" + (open ? " open" : "")}>
               <div className="phone-reveal-in">
-                <input
-                  ref={phoneRef} type="tel" className="phone-input" placeholder="03XX XXXXXXX"
-                  aria-label="Phone number" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-                />
-                <button type="button" className="btn btn-rust" onClick={sendCode}>Send Code →</button>
+                {wa ? (
+                  <div className="wa-wait" aria-live="polite">
+                    <p>Send <strong>Verify {wa.code}</strong> to us on WhatsApp. We&apos;ll log you in as soon as it arrives.</p>
+                    <a className="btn btn-rust" href={wa.url} target="_blank" rel="noopener noreferrer">Open WhatsApp →</a>
+                    <button type="button" className="wa-cancel" onClick={() => setWa(null)}>Use a different number</button>
+                  </div>
+                ) : (
+                  <>
+                    <input
+                      ref={phoneRef} type="tel" className="phone-input" placeholder="03XX XXXXXXX"
+                      aria-label="Phone number" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
+                      onKeyDown={(e) => { if (e.key === "Enter") sendCode(); }}
+                    />
+                    <button type="button" className="btn btn-rust" onClick={sendCode} disabled={busy}>
+                      {busy ? "One moment…" : "Continue on WhatsApp →"}
+                    </button>
+                  </>
+                )}
+                {error && <p className="wa-error" role="alert">{error}</p>}
               </div>
             </div>
 

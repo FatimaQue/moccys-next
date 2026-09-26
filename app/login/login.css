@@ -62,7 +62,7 @@
 .pg-login .phone-reveal{
   max-height:0;overflow:hidden;opacity:0;transition:max-height .3s ease,opacity .25s ease,margin .3s ease;
 }
-.pg-login .phone-reveal.open{max-height:160px;opacity:1;margin-bottom:14px;}
+.pg-login .phone-reveal.open{max-height:280px;opacity:1;margin-bottom:14px;}
 .pg-login .phone-reveal-in{display:flex;flex-direction:column;gap:10px;padding-top:2px;}
 .pg-login .phone-input{
   width:100%;background:#fff;border:1.5px solid rgba(10,18,48,.14);border-radius:6px;
@@ -70,6 +70,11 @@
 }
 .pg-login .phone-input:focus{outline:none;border-color:var(--rust);}
 .pg-login .phone-input::placeholder{color:var(--muted-d);}
+
+.pg-login .wa-wait{display:flex;flex-direction:column;gap:10px;font-size:13.5px;color:var(--ink);}
+.pg-login .wa-wait p{line-height:1.5;}
+.pg-login .wa-cancel{background:none;border:0;padding:4px;font:inherit;font-size:12.5px;color:var(--muted);text-decoration:underline;cursor:pointer;}
+.pg-login .wa-error{font-size:12.5px;color:var(--rust);font-weight:700;}
 
 .pg-login .login-fine{margin-top:30px;font-size:11.5px;color:var(--muted-d);text-align:center;}
 .pg-login .login-fine a{color:var(--rust);font-weight:700;}
