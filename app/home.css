@@ -429,6 +429,15 @@
 .pg-home .show-price{font-family:'Exo 2',sans-serif;font-weight:800;font-style:italic;font-size:26px;color:var(--amber);}
 /* option buttons (chicken/beef, sizes) sit on their own row under the price */
 .pg-home .show-opts{display:flex;flex-wrap:wrap;gap:8px;flex:1 1 100%;}
+/* laptop-height windows: size the photo from the room between the "Best Sellers" tag and the torn edge,
+   and centre it (plus the word, text and callouts) in that gap so the photo never runs into the tag */
+@media (min-width:1181px) and (min-height:530px) and (max-height:760px){
+  .pg-home .showcase{--ss:min(40vw,600px,calc(100svh - 176px));--sc-y:calc(118px + var(--ss) / 2);}
+  .pg-home .show-imgwrap.cutout{width:var(--ss);height:var(--ss);top:var(--sc-y);}
+  .pg-home .show-word{top:var(--sc-y);}
+  .pg-home .show-info{top:var(--sc-y);}
+  .pg-home .show-side{top:var(--sc-y);}
+}
 .pg-home .showcase-dots{position:absolute;right:clamp(18px,4vw,40px);top:50%;transform:translateY(-50%);z-index:5;display:flex;flex-direction:column;gap:10px;}
 .pg-home .showcase-dots button{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,.3);border:0;cursor:pointer;padding:0;transition:.25s;}
 .pg-home .showcase-dots button.on{background:var(--amber);height:26px;border-radius:6px;}
@@ -684,7 +693,7 @@
    stacked as an image row above a text/price/cart row instead. Must match the JS matchMedia below.
    --navh = height of the sticky site header, which covers the top of the pinned panel;
    everything is laid out inside the strip between it and the torn bottom edge */
-@media not all and (min-width:1181px) and (min-height:700px){
+@media not all and (min-width:1181px) and (min-height:530px){
   .pg-home .showcase-kicker{font-size:10px;top:calc(var(--navh) + 14px);}
   .pg-home .show-item{
     display:flex;flex-direction:column;align-items:center;justify-content:flex-start;
@@ -710,7 +719,7 @@
   .pg-home .showcase-dots{right:14px;}
 }
 /* tablets in portrait have plenty of height: let the photo and text breathe */
-@media not all and (min-width:1181px) and (min-height:700px){
+@media not all and (min-width:1181px) and (min-height:530px){
   @media (min-width:641px) and (min-height:900px){
     .pg-home .show-imgwrap.cutout{width:min(56vw,440px);max-height:440px;}
     .pg-home .show-info{max-width:460px;}
@@ -721,7 +730,7 @@
 /* short windows: the pinned panel can only ever be as tall as the window, minus the sticky header
    above and the torn edge below — so drop the paragraph (it's on the menu page) and slim the tear,
    which hands that room to the photo and keeps the buttons clear of the edge */
-@media not all and (min-width:1181px) and (min-height:700px){
+@media not all and (min-width:1181px) and (min-height:530px){
   @media (max-height:720px){
     .pg-home .show-info>p{display:none;}
     .pg-home .show-imgwrap.cutout img{--k:var(--scs,var(--sc,1));}   /* short window = small photo box, so scale the burgers up further */

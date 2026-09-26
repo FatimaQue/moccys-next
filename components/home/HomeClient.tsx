@@ -176,7 +176,7 @@ export default function HomeClient() {
       });
 
       // has to match the @media in the showcase CSS: desktop overlap layout only when there's room for it
-      mq.add("(min-width: 1181px) and (min-height: 700px)", () => {
+      mq.add("(min-width: 1181px) and (min-height: 530px)", () => {
         const words = items.map((it) => it.querySelector(".show-word"));
         const imgs = items.map((it) => it.querySelector(".show-imgwrap"));
         const infos = items.map((it) => it.querySelector(".show-info"));
@@ -235,7 +235,7 @@ export default function HomeClient() {
 
       // same pinned scroll-jack as desktop, but items are stacked (image row, then text/price/cart row)
       // by the mobile CSS instead of overlapping — so the crossfade only moves the item + bg color
-      mq.add("not all and (min-width: 1181px) and (min-height: 700px)", () => {
+      mq.add("not all and (min-width: 1181px) and (min-height: 530px)", () => {
         gsap.set(bg, { backgroundColor: colors[0] });
         gsap.set(items, { opacity: 0, y: 36 });
         gsap.set(items[0], { opacity: 1, y: 0 });
