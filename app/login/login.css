@@ -107,6 +107,8 @@
 
 .pg-login .login-switch{margin-top:22px;text-align:center;font-size:13px;color:var(--muted);}
 .pg-login .login-switch a{color:var(--rust);font-weight:700;}
+.pg-login .link-btn{background:none;border:0;padding:0;font:inherit;font-size:inherit;font-weight:700;color:var(--rust);cursor:pointer;}
+.pg-login .link-btn:disabled{opacity:.6;cursor:default;}
 
 .pg-login .field-err{font-size:12px;color:var(--rust);font-weight:700;margin:-4px 0 14px;}
 .pg-login .field-ok{font-size:13.5px;color:var(--ink);line-height:1.6;}

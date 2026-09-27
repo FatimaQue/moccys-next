@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 import { normalizePhone } from "@/lib/staffAuth";
-import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
@@ -31,25 +30,22 @@ export async function POST(req: Request) {
   if (password.length < MIN_PASSWORD || password.length > MAX_PASSWORD) return bad(`Password must be at least ${MIN_PASSWORD} characters.`);
   if (password !== confirmPassword) return bad("Passwords don't match.");
 
-  // email_confirm skips the "click the link we emailed you" step, same call as lib/waLogin.ts /
-  // lib/staffAuth.ts make for their own accounts — this app doesn't gate any login on email confirmation
-  const { error: createErr } = await supabaseAdmin().auth.admin.createUser({
-    email, password, email_confirm: true,
-    user_metadata: { role: "customer", full_name: `${firstName} ${lastName}`, phone },
+  // a real signUp (not the admin API) is what makes Supabase actually send the "Confirm signup" email
+  // with the 6-digit code — the account stays unconfirmed, and can't sign in, until that code is verified
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase.auth.signUp({
+    email, password,
+    options: { data: { role: "customer", full_name: `${firstName} ${lastName}`, phone } },
   });
-  if (createErr) {
-    if (/already|registered/i.test(createErr.message)) {
-      return bad("An account with that email already exists. Please log in instead.", 409);
-    }
-    console.error("signup failed", createErr.message);
+  if (error) {
+    console.error("signup failed", error.message);
     return bad("Could not create your account. Please try again.", 500);
   }
-
-  const supabase = await supabaseServer();
-  const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-  if (signInErr) {
-    console.error("post-signup sign-in failed", signInErr.message);
-    return bad("Your account was created, but we couldn't sign you in automatically. Please log in.", 500);
+  // an email that's already registered and confirmed signs up again with no error and no identities —
+  // Supabase's way of not leaking which emails exist; we still want to tell our own customer clearly
+  if (data.user && data.user.identities?.length === 0) {
+    return bad("An account with that email already exists. Please log in instead.", 409);
   }
+
   return NextResponse.json({ ok: true });
 }

@@ -1,12 +1,12 @@
 import "./menu.css";
-import Nav from "@/components/Nav";
 import Footer from "@/components/Footer";
+import SiteNav from "@/components/SiteNav";
 import WhatsAppButton from "@/components/WhatsAppButton";
 
 export default function MenuLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="pg-menu">
-      <Nav />
+      <SiteNav />
       {children}
       <Footer />
       <WhatsAppButton />

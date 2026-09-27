@@ -7,6 +7,8 @@ import { useRouter } from "next/navigation";
 import { useCart } from "./CartProvider";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
+export const DELIVERY_ADDRESS_KEY = "mccoysDeliveryAddress";
+
 type NavLink = { href: string; label: string };
 
 const MENU_LINKS: NavLink[] = [

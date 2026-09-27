@@ -1,0 +1,26 @@
+<!--
+  Supabase -> Authentication -> Email Templates -> Confirm signup
+  Subject line (set separately in the dashboard): Your McCoy's signup code
+  Uses {{ .Token }} (the 6-digit code), not the default {{ .ConfirmationURL }} link.
+-->
+<div style="background:#F1F3F9;padding:32px 16px;font-family:Arial,Helvetica,sans-serif;">
+  <div style="max-width:420px;margin:0 auto;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #E3E8F3;">
+    <div style="background:#0A1230;padding:22px 28px;">
+      <span style="color:#ffffff;font-size:20px;font-weight:800;font-style:italic;letter-spacing:.02em;">mccoy&#39;s</span>
+    </div>
+    <div style="padding:32px 28px;">
+      <h1 style="margin:0 0 8px;font-size:20px;color:#0A1230;">Confirm your email</h1>
+      <p style="margin:0 0 24px;font-size:14px;line-height:1.6;color:#5A6485;">
+        Enter this code to finish creating your mccoy&#39;s account. It expires in 1 hour.
+      </p>
+      <div style="text-align:center;margin:0 0 24px;">
+        <span style="display:inline-block;font-size:32px;font-weight:800;letter-spacing:.3em;color:#B3122B;background:#F1F3F9;border-radius:10px;padding:14px 20px;">
+          {{ .Token }}
+        </span>
+      </div>
+      <p style="margin:0;font-size:12.5px;line-height:1.6;color:#9CA7CC;">
+        If you didn&#39;t try to sign up for mccoy&#39;s, you can safely ignore this email.
+      </p>
+    </div>
+  </div>
+</div>

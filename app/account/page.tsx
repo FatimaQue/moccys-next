@@ -3,7 +3,7 @@ import "./account.css";
 import { redirect } from "next/navigation";
 import AccountClient from "@/components/AccountClient";
 import Footer from "@/components/Footer";
-import Nav from "@/components/Nav";
+import SiteNav from "@/components/SiteNav";
 import WhatsAppButton from "@/components/WhatsAppButton";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -20,12 +20,13 @@ export default async function AccountPage() {
   const addresses = Array.isArray(m.addresses) ? (m.addresses as { label: string; address: string }[]) : [];
   return (
     <div className="pg-menu pg-account">
-      <Nav />
+      <SiteNav />
       <AccountClient
         phone={String(m.phone ?? "")}
         initialName={String(m.full_name ?? "")}
         initialBirthday={String(m.birthday ?? "")}
         initialAddresses={addresses}
+        initialAvatarUrl={String(m.avatar_url ?? "")}
       />
       <Footer />
       <WhatsAppButton />

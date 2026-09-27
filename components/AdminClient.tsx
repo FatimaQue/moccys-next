@@ -65,14 +65,6 @@ const TABS: { phase: Phase; label: string; accent: string; icon: React.ReactNode
     icon: <><circle cx="12" cy="12" r="9" /><path d="M8 12.5l3 3 5-6" /></> },
 ];
 
-const COLUMNS: Record<Phase, string[]> = {
-  pending: ["Order ID", "Customer", "Order", "Order Details", "Items", "Amount", "Action"],
-  preparing: ["Order ID", "Customer", "Order", "Order Details", "Items", "Amount", "Action"],
-  ready: ["Order ID", "Customer", "Order", "Order Details", "Items", "Amount", "Action"],
-  out: ["Order ID", "Customer", "Order", "Order Details", "Driver"],
-  delivered: ["Order ID", "Customer", "Order", "Order Details", "Delivered by", "Delivered at"],
-};
-
 const PILL: Record<Status, [string, string]> = {
   pending: ["rust", "Pending"], preparing: ["amber", "Preparing"], ready: ["green", "Ready"],
   out: ["amber", "Out for Delivery"], delivered: ["green", "Delivered"], rejected: ["rust", "Rejected"],
@@ -80,7 +72,6 @@ const PILL: Record<Status, [string, string]> = {
 
 export default function AdminClient() {
   const [page, setPage] = useState<"dashboard" | "orders" | "reports" | "inventory" | "drivers">("dashboard");
-  const [phase, setPhase] = useState<Phase>("pending");
   const router = useRouter();
   const [all, setAll] = useState<Order[]>([]);
   const [loaded, setLoaded] = useState(false);
@@ -222,9 +213,6 @@ export default function AdminClient() {
 
   const isNew = (o: Order) => o.status === "pending" && now - new Date(o.createdAt).getTime() < NEW_MINUTES * 60_000;
 
-  const rows = orders[phase];
-  const cols = COLUMNS[phase];
-
   return (
     <>
       <div className="app">
@@ -319,77 +307,61 @@ export default function AdminClient() {
                   </div>
                 </div>
 
-                <div className="tabbar">
+                <div className="board">
                   {TABS.map((t) => (
-                    <button
-                      key={t.phase}
-                      className={"tab" + (t.phase === phase ? " active" : "")}
-                      style={{ "--tab-accent": t.accent } as React.CSSProperties}
-                      onClick={() => setPhase(t.phase)}
-                    >
-                      <svg viewBox="0 0 24 24">{t.icon}</svg>
-                      <span className="tab-label">{t.label}</span>
-                      <span className="tab-count">{orders[t.phase].length}</span>
-                    </button>
-                  ))}
-                </div>
-
-                <div className="table-card phase-panel">
-                  <table>
-                    <thead><tr>{cols.map((c) => <th key={c}>{c}</th>)}</tr></thead>
-                    <tbody>
-                      {rows.length === 0 ? (
-                        <tr><td colSpan={cols.length} className="col-empty">{!loaded ? "Loading orders…" : loadError ?? "No orders"}</td></tr>
-                      ) : rows.map((o) => (
-                        <tr key={o.dbId}>
-                          <td>{o.id}{isNew(o) && <> <span className="card-tag">New</span></>}</td>
-                          <td>{o.customer}</td>
-                          <td>
+                    <div className="col" data-col={t.phase} key={t.phase}>
+                      <div className="col-head">
+                        <h3><svg viewBox="0 0 24 24">{t.icon}</svg> {t.label}</h3>
+                        <span className="col-count">{orders[t.phase].length}</span>
+                      </div>
+                      <div className="col-body">
+                        {orders[t.phase].length === 0 ? (
+                          <p className="col-empty">{!loaded ? "Loading…" : loadError ?? "No orders"}</p>
+                        ) : orders[t.phase].map((o) => (
+                          <div className="card" key={o.dbId}>
+                            <div className="card-top">
+                              <span className="card-id">{o.id}</span>
+                              {isNew(o) && <span className="card-tag">New</span>}
+                            </div>
                             <div className="order-cell">
-                              {o.img && <Image className="order-thumb" src={o.img} alt={o.name ?? ""} width={48} height={48} />}
+                              {o.img && <Image className="order-thumb" src={o.img} alt={o.name ?? ""} width={36} height={36} />}
                               <span className="order-name">{o.name}</span>
                             </div>
-                          </td>
-                          <td>
+                            <div className="card-cust">{o.customer}</div>
                             <ul className="order-details">{o.details?.map((d) => <li key={d}>{d}</li>)}</ul>
-                          </td>
-                          {phase === "delivered" ? (
-                            <>
-                              <td>{o.driver ?? "—"}</td>
-                              <td><span className="pill pill-green">{timeOf(o.deliveredAt)}</span></td>
-                            </>
-                          ) : phase === "out" ? (
-                            <>
-                              <td><span className="card-status">En route</span> · {o.driver ?? "no driver"}</td>
-                            </>
-                          ) : (
-                            <>
-                              <td>{o.items}</td>
-                              <td className="amount">{money(o.total)}</td>
-                              <td>
-                                {phase === "pending" && (
-                                  <div className="card-actions">
-                                    <button className="btn-accept" onClick={() => handleAction(o.dbId, "accept")}>Accept</button>
-                                    <button className="btn-reject" onClick={() => handleAction(o.dbId, "reject")}>Reject</button>
-                                  </div>
-                                )}
-                                {phase === "preparing" && <button className="btn-ready" onClick={() => handleAction(o.dbId, "ready")}>Mark Ready</button>}
-                                {phase === "ready" && (
-                                  <div className="card-actions">
-                                    <select className="driver-pick" value={pick[o.dbId] ?? (activeDrivers.length === 1 ? activeDrivers[0].id : "")} onChange={(e) => setPick((p) => ({ ...p, [o.dbId]: e.target.value }))}>
-                                      <option value="">{activeDrivers.length ? "Pick rider…" : "No riders yet"}</option>
-                                      {activeDrivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
-                                    </select>
-                                    <button className="btn-ready" onClick={() => handleAction(o.dbId, "dispatch")}>Send Out</button>
-                                  </div>
-                                )}
-                              </td>
-                            </>
-                          )}
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+
+                            {t.phase === "delivered" ? (
+                              <div className="card-status">Delivered by {o.driver ?? "—"} · {timeOf(o.deliveredAt)}</div>
+                            ) : t.phase === "out" ? (
+                              <div className="card-status">En route · {o.driver ?? "no driver"}</div>
+                            ) : (
+                              <div className="card-meta">
+                                <span className="card-items">{o.items}</span>
+                                <span className="card-price">{money(o.total)}</span>
+                              </div>
+                            )}
+
+                            {t.phase === "pending" && (
+                              <div className="card-actions">
+                                <button className="btn-accept" onClick={() => handleAction(o.dbId, "accept")}>Accept</button>
+                                <button className="btn-reject" onClick={() => handleAction(o.dbId, "reject")}>Reject</button>
+                              </div>
+                            )}
+                            {t.phase === "preparing" && <button className="btn-ready" onClick={() => handleAction(o.dbId, "ready")}>Mark Ready</button>}
+                            {t.phase === "ready" && (
+                              <div className="card-actions">
+                                <select className="driver-pick" value={pick[o.dbId] ?? (activeDrivers.length === 1 ? activeDrivers[0].id : "")} onChange={(e) => setPick((p) => ({ ...p, [o.dbId]: e.target.value }))}>
+                                  <option value="">{activeDrivers.length ? "Pick rider…" : "No riders yet"}</option>
+                                  {activeDrivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
+                                </select>
+                                <button className="btn-ready" onClick={() => handleAction(o.dbId, "dispatch")}>Send Out</button>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </section>
             ) : (

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { DELIVERY_FEE } from "@/lib/pricing";
 import { money, useCart } from "./CartProvider";
+import { DELIVERY_ADDRESS_KEY } from "./Nav";
 import { LAST_ORDER_KEY } from "./TrackClient";
 
 
@@ -44,6 +45,13 @@ function readJazzCashReturn() {
   return null;
 }
 
+// the delivery address set from the nav's map popup (Nav / SiteNav / HomeClient), so it doesn't
+// have to be typed in twice
+function readSavedAddress() {
+  if (typeof window === "undefined") return "";
+  try { return localStorage.getItem(DELIVERY_ADDRESS_KEY) ?? ""; } catch { return ""; }
+}
+
 export default function CheckoutClient() {
   const { cart, setQty, remove, clear } = useCart();
   const [orderType, setOrderType] = useState<"delivery" | "pickup">("delivery");
@@ -56,6 +64,7 @@ export default function CheckoutClient() {
   const choose = (m: typeof pay) => { setPay(m); if (m === "bank") { setSame(false); setWallet(""); } };
   const [same, setSame] = useState(false);
   const [jazzcashReturn] = useState(readJazzCashReturn);
+  const [savedAddress] = useState(readSavedAddress);
   const [orderId, setOrderId] = useState<string | null>(() => (jazzcashReturn?.ok ? jazzcashReturn.orderNo : null));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(() =>
@@ -203,7 +212,7 @@ export default function CheckoutClient() {
                       </div>
                       <div className="field full">
                         <label htmlFor="fAddress">Address Information<i>*</i></label>
-                        <input type="text" id="fAddress" placeholder="House #, street, landmark" required={delivery} />
+                        <input type="text" id="fAddress" placeholder="House #, street, landmark" required={delivery} defaultValue={savedAddress} />
                       </div>
                     </div>
 

@@ -6,7 +6,7 @@ import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { MenuItem } from "@/data/menu";
 import ItemModal from "../ItemModal";
-import Nav from "../Nav";
+import Nav, { DELIVERY_ADDRESS_KEY } from "../Nav";
 import Footer from "../Footer";
 import WhatsAppButton from "../WhatsAppButton";
 import AddressModal from "./AddressModal";
@@ -36,7 +36,9 @@ export default function HomeClient() {
   const [cartOpen, setCartOpen] = useState(false);
   const [addrOpen, setAddrOpen] = useState(false);
   const [pickupOpen, setPickupOpen] = useState(false);
-  const [address, setAddress] = useState("");
+  const [address, setAddress] = useState(() => {
+    try { return localStorage.getItem(DELIVERY_ADDRESS_KEY) ?? ""; } catch { return ""; }
+  });
   const [showIdx, setShowIdx] = useState(0);
   const [selected, setSelected] = useState<MenuItem | null>(null);
 
@@ -45,6 +47,11 @@ export default function HomeClient() {
   const closeAddr = useCallback(() => setAddrOpen(false), []);
   const closePickup = useCallback(() => setPickupOpen(false), []);
   const closeItem = useCallback(() => setSelected(null), []);
+  // remembered so it can be prefilled on checkout, not just shown in the nav's own address box
+  const confirmAddress = useCallback((a: string) => {
+    setAddress(a);
+    try { localStorage.setItem(DELIVERY_ADDRESS_KEY, a); } catch { /* storage blocked: it just won't be remembered */ }
+  }, []);
 
   /* ---------- GSAP: scroll reveals, tilt, magnets, pinned showcase ---------- */
   useEffect(() => {
@@ -313,7 +320,7 @@ export default function HomeClient() {
       {selected && <ItemModal key={selected.name} item={selected} onClose={closeItem} onAdded={openCart} />}
 
       <CartDrawer open={cartOpen} onClose={closeCart} />
-      <AddressModal open={addrOpen} onClose={closeAddr} onConfirm={setAddress} />
+      <AddressModal open={addrOpen} onClose={closeAddr} onConfirm={confirmAddress} />
       <PickupModal open={pickupOpen} onClose={closePickup} />
     </div>
   );

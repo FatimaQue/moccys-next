@@ -15,8 +15,8 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export default function AccountClient({
-  phone: initialPhone, initialName, initialBirthday, initialAddresses,
-}: { phone: string; initialName: string; initialBirthday: string; initialAddresses: Address[] }) {
+  phone: initialPhone, initialName, initialBirthday, initialAddresses, initialAvatarUrl,
+}: { phone: string; initialName: string; initialBirthday: string; initialAddresses: Address[]; initialAvatarUrl: string }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("profile");
 
@@ -24,6 +24,8 @@ export default function AccountClient({
   const [phone, setPhone] = useState(initialPhone);
   const [birthday, setBirthday] = useState(initialBirthday);
   const [addresses, setAddresses] = useState<Address[]>(initialAddresses);
+  const [avatarUrl, setAvatarUrl] = useState(initialAvatarUrl);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [label, setLabel] = useState("");
   const [addr, setAddr] = useState("");
   const [msg, setMsg] = useState("");
@@ -62,6 +64,17 @@ export default function AccountClient({
     if (await save({ addresses: next }, "Address removed.")) setAddresses(next);
   };
 
+  const uploadAvatar = async (file: File) => {
+    setUploadingAvatar(true); setMsg("");
+    const body = new FormData();
+    body.append("file", file);
+    const res = await fetch("/api/account/avatar", { method: "POST", body }).catch(() => null);
+    const data = await res?.json().catch(() => ({}));
+    if (res?.ok && data.url && (await save({ avatar_url: data.url }, "Photo updated."))) setAvatarUrl(data.url);
+    else setMsg(data?.error || "Could not upload the photo. Please try again.");
+    setUploadingAvatar(false);
+  };
+
   const logout = async () => {
     await supabaseBrowser().auth.signOut();
     router.push("/");
@@ -84,8 +97,26 @@ export default function AccountClient({
 
       {tab === "profile" && (
         <form className="acct-form" onSubmit={(e) => { e.preventDefault(); save({ full_name: name.trim(), phone: phone.trim(), birthday }, "Profile updated."); }}>
-          <div className="acct-avatar" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" /></svg>
+          <div className="acct-avatar">
+            <div className="acct-avatar-photo">
+              {avatarUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element -- a user photo, not from next/image's known set of sources
+                <img src={avatarUrl} alt="" />
+              ) : (
+                <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" /></svg>
+              )}
+            </div>
+            <label className="acct-avatar-edit" aria-label="Change photo">
+              {uploadingAvatar ? (
+                <span className="acct-avatar-spin" />
+              ) : (
+                <svg viewBox="0 0 24 24"><path d="M4 8a2 2 0 012-2h1.2l.9-1.4A2 2 0 019.8 3.6h4.4a2 2 0 011.7 1l.9 1.4H18a2 2 0 012 2v10a2 2 0 01-2 2H6a2 2 0 01-2-2V8z" /><circle cx="12" cy="13" r="3.4" /></svg>
+              )}
+              <input
+                type="file" accept="image/jpeg,image/png,image/webp" hidden disabled={uploadingAvatar}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) uploadAvatar(f); e.target.value = ""; }}
+              />
+            </label>
           </div>
           <label>Full Name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder="Your name" /></label>
           <label>Phone Number<input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={11} inputMode="tel" placeholder="03XXXXXXXXX" /></label>
