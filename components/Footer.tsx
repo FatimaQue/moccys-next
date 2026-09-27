@@ -6,7 +6,7 @@ export default function Footer() {
         <nav className="foot-links" aria-label="Legal">
           <a href="#">Terms &amp; Conditions</a>
           <i aria-hidden="true"></i>
-          <a href="#">Privacy Policy</a>
+          <a href="/privacy">Privacy Policy</a>
         </nav>
       </div>
     </footer>

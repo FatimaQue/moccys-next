@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { supabaseAdmin } from "@/lib/supabase/admin";
-import { WA_MAX_STARTS, WA_TTL_MINUTES, newCode, normalizePhone } from "@/lib/waLogin";
+import { normalizePhone, SESSION_TTL_MINUTES } from "@/lib/waLogin";
+
+const MAX_STARTS = 5; // sessions per phone per 10 minutes, so the "message us" link can't be spammed into a mailbomb
 
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => ({}))) as { phone?: string };
@@ -12,17 +14,17 @@ export async function POST(req: Request) {
 
   const db = supabaseAdmin();
   const since = new Date(Date.now() - 10 * 60_000).toISOString();
-  const { count } = await db.from("wa_login_sessions").select("*", { count: "exact", head: true }).eq("phone", phone).gte("created_at", since);
-  if ((count ?? 0) >= WA_MAX_STARTS) return NextResponse.json({ error: "Too many tries. Please wait a few minutes." }, { status: 429 });
+  const { count } = await db.from("wa_otp_sessions").select("*", { count: "exact", head: true }).eq("phone", phone).gte("created_at", since);
+  if ((count ?? 0) >= MAX_STARTS) return NextResponse.json({ error: "Too many tries. Please wait a few minutes." }, { status: 429 });
 
-  const code = newCode();
   const { data, error } = await db
-    .from("wa_login_sessions")
-    .insert({ phone, code, expires_at: new Date(Date.now() + WA_TTL_MINUTES * 60_000).toISOString() })
+    .from("wa_otp_sessions")
+    .insert({ phone, expires_at: new Date(Date.now() + SESSION_TTL_MINUTES * 60_000).toISOString() })
     .select("id")
     .single<{ id: string }>();
   if (error || !data) return NextResponse.json({ error: "Could not start login. Please try again." }, { status: 500 });
 
-  const text = encodeURIComponent(`Verify ${code}`);
-  return NextResponse.json({ sid: data.id, code, url: `https://wa.me/${number}?text=${text}`, expiresInMinutes: WA_TTL_MINUTES });
+  // any message proves ownership of the number; the webhook matches it back to this session by phone
+  const text = encodeURIComponent("Hi, I'd like to log in to mccoy's.");
+  return NextResponse.json({ sid: data.id, url: `https://wa.me/${number}?text=${text}` });
 }

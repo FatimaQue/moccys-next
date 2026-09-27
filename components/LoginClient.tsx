@@ -5,30 +5,36 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 
+type Stage = { step: "phone" } | { step: "waiting"; sid: string; url: string } | { step: "code"; sid: string; url: string };
+
 export default function LoginClient() {
   const router = useRouter();
   const [open, setOpen] = useState(false);
   const [phone, setPhone] = useState("");
+  const [code, setCode] = useState("");
   const phoneRef = useRef<HTMLInputElement>(null);
+  const codeRef = useRef<HTMLInputElement>(null);
 
   const toggle = () => {
     const next = !open;
     setOpen(next);
     if (next) phoneRef.current?.focus();
   };
-  const [wa, setWa] = useState<{ sid: string; code: string; url: string } | null>(null);
+
+  const [stage, setStage] = useState<Stage>({ step: "phone" });
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  // customer proves the number by sending a WhatsApp message; we poll until the webhook marks it verified
-  const sendCode = async () => {
+  // step 1: the customer messages us first (a normal WhatsApp message, not a typed code), which is what
+  // proves the number and opens the free 24h reply window we text the code back through
+  const start = async () => {
     if (!phone.trim() || busy) return;
     setBusy(true); setError("");
     try {
       const res = await fetch("/api/auth/wa/start", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone }) });
       const data = await res.json();
       if (!res.ok) { setError(data.error || "Something went wrong. Please try again."); return; }
-      setWa(data);
+      setStage({ step: "waiting", sid: data.sid, url: data.url });
       window.open(data.url, "_blank", "noopener");
     } catch {
       setError("Network problem. Please try again.");
@@ -37,23 +43,56 @@ export default function LoginClient() {
     }
   };
 
+  // step 2: poll only to know when our reply with the code has gone out, so the page can reveal the code box
   useEffect(() => {
-    if (!wa) return;
+    if (stage.step !== "waiting") return;
+    const { sid, url } = stage;
     let stopped = false;
-    const timer = setInterval(async () => {
+    let timer: ReturnType<typeof setTimeout>;
+    const poll = async () => {
       try {
-        const res = await fetch("/api/auth/wa/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sid: wa.sid }) });
+        const res = await fetch("/api/auth/wa/status", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sid }) });
         const data = await res.json();
         if (stopped) return;
-        if (data.status === "ok") { stopped = true; clearInterval(timer); router.push("/"); router.refresh(); }
-        else if (data.status === "expired" || data.status === "invalid" || data.error) {
-          stopped = true; clearInterval(timer); setWa(null);
-          setError(data.error || "That code expired. Please try again.");
+        if (data.status === "sent") { stopped = true; setStage({ step: "code", sid, url }); return; }
+        if (data.status === "expired" || data.status === "invalid") {
+          stopped = true; setStage({ step: "phone" });
+          setError("That took too long. Please try again.");
+          return;
         }
       } catch { /* keep polling */ }
-    }, 2000);
-    return () => { stopped = true; clearInterval(timer); };
-  }, [wa, router]);
+      if (!stopped) timer = setTimeout(poll, 2000);
+    };
+    timer = setTimeout(poll, 2000);
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [stage]);
+
+  useEffect(() => {
+    if (stage.step === "code") codeRef.current?.focus();
+  }, [stage.step]);
+
+  // step 3: the customer reads the code off WhatsApp and types it in here
+  const verify = async () => {
+    if (stage.step !== "code" || busy || code.trim().length !== 6) return;
+    setBusy(true); setError("");
+    try {
+      const res = await fetch("/api/auth/wa/verify", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ sid: stage.sid, code: code.trim() }) });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Something went wrong. Please try again.");
+        if (res.status === 410 || res.status === 429) setStage({ step: "phone" });
+        return;
+      }
+      router.push("/account");
+      router.refresh();
+    } catch {
+      setError("Network problem. Please try again.");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const reset = () => { setStage({ step: "phone" }); setCode(""); setError(""); };
 
   return (
     <div className="login-card">
@@ -74,31 +113,50 @@ export default function LoginClient() {
 
             <div className={"phone-reveal" + (open ? " open" : "")}>
               <div className="phone-reveal-in">
-                {wa ? (
-                  <div className="wa-wait" aria-live="polite">
-                    <p>Send <strong>Verify {wa.code}</strong> to us on WhatsApp. We&apos;ll log you in as soon as it arrives.</p>
-                    <a className="btn btn-rust" href={wa.url} target="_blank" rel="noopener noreferrer">Open WhatsApp →</a>
-                    <button type="button" className="wa-cancel" onClick={() => setWa(null)}>Use a different number</button>
-                  </div>
-                ) : (
+                {stage.step === "phone" && (
                   <>
                     <input
                       ref={phoneRef} type="tel" className="phone-input" placeholder="03XX XXXXXXX"
                       aria-label="Phone number" inputMode="tel" value={phone} onChange={(e) => setPhone(e.target.value)}
-                      onKeyDown={(e) => { if (e.key === "Enter") sendCode(); }}
+                      onKeyDown={(e) => { if (e.key === "Enter") start(); }}
                     />
-                    <button type="button" className="btn btn-rust" onClick={sendCode} disabled={busy}>
+                    <button type="button" className="btn btn-rust" onClick={start} disabled={busy}>
                       {busy ? "One moment…" : "Continue on WhatsApp →"}
                     </button>
                   </>
                 )}
+
+                {stage.step === "waiting" && (
+                  <div className="wa-wait" aria-live="polite">
+                    <p>Tap send on the WhatsApp message we&apos;ve opened for you. We&apos;ll text you back a code.</p>
+                    <a className="btn btn-rust" href={stage.url} target="_blank" rel="noopener noreferrer">Open WhatsApp →</a>
+                    <button type="button" className="wa-cancel" onClick={reset}>Use a different number</button>
+                  </div>
+                )}
+
+                {stage.step === "code" && (
+                  <div className="wa-wait" aria-live="polite">
+                    <p>We&apos;ve texted you a 6-digit code on WhatsApp. Enter it below.</p>
+                    <input
+                      ref={codeRef} type="text" className="phone-input" placeholder="6-digit code" aria-label="WhatsApp code"
+                      inputMode="numeric" maxLength={6} value={code}
+                      onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                      onKeyDown={(e) => { if (e.key === "Enter") verify(); }}
+                    />
+                    <button type="button" className="btn btn-rust" onClick={verify} disabled={busy || code.length !== 6}>
+                      {busy ? "Checking…" : "Verify & Log In"}
+                    </button>
+                    <button type="button" className="wa-cancel" onClick={reset}>Use a different number</button>
+                  </div>
+                )}
+
                 {error && <p className="wa-error" role="alert">{error}</p>}
               </div>
             </div>
 
             <Link href="/" className="btn btn-out login-btn-guest">Continue as a Guest</Link>
 
-            <p className="login-fine">By continuing, you agree to mccoy&apos;s <a href="#">Terms</a> &amp; <a href="#">Privacy Policy</a>.</p>
+            <p className="login-fine">By continuing, you agree to mccoy&apos;s <a href="#">Terms</a> &amp; <a href="/privacy">Privacy Policy</a>.</p>
           </div>
         </div>
       </div>

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCart } from "./CartProvider";
+import { supabaseBrowser } from "@/lib/supabase/browser";
 
 type NavLink = { href: string; label: string };
 
@@ -32,7 +33,17 @@ export default function Nav({
   const router = useRouter();
   const { count } = useCart();
   const [open, setOpen] = useState(false);
+  const [account, setAccount] = useState(false);
   const [fulfill, setFulfill] = useState<"delivery" | "pickup">("delivery");
+
+  // a customer who signed in with WhatsApp gets an Account button instead of Login
+  useEffect(() => {
+    const sb = supabaseBrowser();
+    const check = () => sb.auth.getSession().then(({ data }) => setAccount(data.session?.user.user_metadata?.role === "customer"));
+    check();
+    const { data: sub } = sb.auth.onAuthStateChange(check);
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   // the drawer locks page scroll while open, and Escape closes it
   useEffect(() => {
@@ -101,9 +112,9 @@ export default function Nav({
             <span>Cart</span>
             <i className="cart-badge">{count}</i>
           </button>
-          <Link href="/login" className="loginbtn">
+          <Link href={account ? "/account" : "/login"} className="loginbtn">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" /></svg>
-            <span>Login</span>
+            <span>{account ? "Account" : "Login"}</span>
           </Link>
         </div>
       </div>
