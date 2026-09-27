@@ -90,7 +90,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: FAILED }, { status: 500 });
     }
     // For safepay the order isn't real yet until payment is confirmed, so it stays off the
-    // admin board and out of the notification bell until markPaid (lib/safepay.ts) says so.
+    // admin board and out of the notification bell until confirmPayment (lib/safepay.ts) says so.
     if (payMethod !== "safepay") {
       await logOrderEvent({
         orderId: data.id, orderNo: order_no, kind: "new_order", actor: "Customer",

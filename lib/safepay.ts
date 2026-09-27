@@ -1,5 +1,4 @@
 import "server-only";
-import crypto from "crypto";
 import { logOrderEvent } from "@/lib/orderEvents";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
@@ -13,12 +12,11 @@ const URLS = {
 
 function config() {
   const apiKey = process.env.SAFEPAY_API_KEY;
-  const v1Secret = process.env.SAFEPAY_V1_SECRET;
-  const webhookSecret = process.env.SAFEPAY_WEBHOOK_SECRET;
+  const secretKey = process.env.SAFEPAY_V1_SECRET;
   const site = process.env.NEXT_PUBLIC_SITE_URL;
-  if (!apiKey || !v1Secret || !site) return null;
+  if (!apiKey || !site) return null;
   const environment = process.env.SAFEPAY_ENV === "production" ? "production" : "sandbox";
-  return { apiKey, v1Secret, webhookSecret, site, environment, ...URLS[environment] } as const;
+  return { apiKey, secretKey, site, environment, ...URLS[environment] } as const;
 }
 
 // Lets the rest of the app check whether Safepay is set up yet without throwing.
@@ -56,54 +54,61 @@ export async function startCheckout(opts: { orderNo: string; amountPkr: number }
   return { tracker, url: `${cfg.checkout}?${params}` };
 }
 
-function safeEqualHex(given: string, expected: string) {
-  try {
-    const a = Buffer.from(given, "hex");
-    const b = Buffer.from(expected, "hex");
-    return a.length > 0 && a.length === b.length && crypto.timingSafeEqual(a, b);
-  } catch {
-    return false;
-  }
-}
+type Tracker = { state?: string; amount?: number; currency?: string; client?: string; transaction?: { token?: string } | null };
 
-// The redirect back from Safepay carries sig = HMAC-SHA256(tracker, v1 secret), so a forged or
-// edited return URL can't mark an order paid.
-export function verifyRedirect(tracker: string, sig: string) {
+// Asks Safepay itself for the tracker's current state. The browser redirect only carries
+// ?order_id=&tracker= (no signature), so it's never trusted on its own — this is the proof.
+async function fetchTracker(tracker: string): Promise<Tracker | null> {
   const cfg = config();
-  if (!cfg || !tracker || !sig) return false;
-  return safeEqualHex(sig, crypto.createHmac("sha256", cfg.v1Secret).update(tracker).digest("hex"));
+  if (!cfg) return null;
+  const res = await fetch(`${cfg.api}/order/v1/${encodeURIComponent(tracker)}`, {
+    headers: cfg.secretKey ? { "X-SFPY-MERCHANT-SECRET": cfg.secretKey } : {},
+    cache: "no-store",
+  });
+  if (!res.ok) return null;
+  const json = await res.json().catch(() => null);
+  return json?.data ?? null;
 }
 
-// Webhooks carry x-sfpy-signature = HMAC-SHA512(JSON.stringify(body.data), webhook secret).
-export function verifyWebhook(data: unknown, signature: string | null) {
+// Checks with Safepay whether the order behind this tracker was paid, and if so marks it paid and
+// tells the admin board. Both the browser redirect and the webhook call this, often at the same
+// moment, so the update only matches an order that isn't paid yet — whichever arrives second
+// changes nothing and logs nothing. Returns null when no order has this tracker.
+export async function confirmPayment(tracker: string): Promise<{ orderNo: string; paid: boolean } | null> {
   const cfg = config();
-  if (!cfg?.webhookSecret || !signature) return false;
-  const expected = crypto.createHmac("sha512", cfg.webhookSecret).update(JSON.stringify(data)).digest("hex");
-  return safeEqualHex(signature, expected);
-}
+  if (!cfg || !/^track_[\w-]+$/.test(tracker)) return null;
 
-// Marks the order with this tracker paid and tells the admin board about it. Both the browser
-// redirect and the webhook call this, often at the same moment, so the update only matches an
-// order that isn't paid yet — whichever arrives second changes nothing and logs nothing.
-export async function markPaid(tracker: string) {
   const db = supabaseAdmin();
   const { data: order } = await db
     .from("orders")
-    .update({ payment_status: "paid", paid_at: new Date().toISOString() })
+    .select("id, order_no, total, customer_name, payment_status")
     .eq("safepay_tracker", tracker)
-    .neq("payment_status", "paid")
-    .select("id, order_no, total, customer_name")
     .maybeSingle();
+  if (!order) return null;
+  if (order.payment_status === "paid") return { orderNo: order.order_no, paid: true };
 
-  if (order) {
+  // TRACKER_ENDED with a transaction = paid; it must also be our account and the full order amount
+  const t = await fetchTracker(tracker);
+  const paid = t?.state === "TRACKER_ENDED" && !!t.transaction && t.client === cfg.apiKey
+    && t.currency === "PKR" && Number(t.amount) === Number(order.total);
+  if (!paid) {
+    console.error("safepay: tracker not paid", tracker, order.order_no, t?.state, t?.amount, order.total);
+    return { orderNo: order.order_no, paid: false };
+  }
+
+  const { data: updated } = await db
+    .from("orders")
+    .update({ payment_status: "paid", paid_at: new Date().toISOString() })
+    .eq("id", order.id)
+    .neq("payment_status", "paid")
+    .select("id")
+    .maybeSingle();
+  if (updated) {
     // Only now does the order become visible to the kitchen — see app/api/admin/orders/route.ts.
     await logOrderEvent({
       orderId: order.id, orderNo: order.order_no, kind: "new_order", actor: "Customer",
       message: `New order ${order.order_no} from ${order.customer_name} — Rs. ${order.total.toLocaleString("en-US")}, paid online via Safepay, waiting for approval`,
     });
-    return order.order_no as string;
   }
-
-  const { data: existing } = await db.from("orders").select("order_no").eq("safepay_tracker", tracker).maybeSingle();
-  return (existing?.order_no as string | undefined) ?? null;
+  return { orderNo: order.order_no, paid: true };
 }
