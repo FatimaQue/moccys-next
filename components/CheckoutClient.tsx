@@ -17,33 +17,20 @@ const BANK = {
   iban: process.env.NEXT_PUBLIC_BANK_IBAN || "",
 };
 
-// Hands the browser off to JazzCash's hosted checkout page via a real (auto-submitted) form
-// POST — the fields include a secure hash, so this can't be done with a plain redirect/fetch.
-function redirectToJazzCash(action: string, fields: Record<string, string>) {
-  const form = document.createElement("form");
-  form.method = "POST";
-  form.action = action;
-  for (const [k, v] of Object.entries(fields)) {
-    const input = document.createElement("input");
-    input.type = "hidden";
-    input.name = k;
-    input.value = v;
-    form.appendChild(input);
-  }
-  document.body.appendChild(form);
-  form.submit();
-}
-
-// Reads what JazzCash's hosted page put on the return URL, once, before first render — a plain
-// value used to seed initial state, not an effect, so there's no setState-after-mount involved.
-function readJazzCashReturn() {
+// Reads how the trip to Safepay's hosted page ended from the return URL, once, before first
+// render — a plain value used to seed initial state, not an effect, so there's no setState-after-mount involved.
+function readSafepayReturn(): { result: "success" | "failed" | "cancelled"; orderNo: string | null } | null {
   if (typeof window === "undefined") return null;
   const params = new URLSearchParams(window.location.search);
-  const result = params.get("jazzcash");
-  if (result === "success") return { ok: true as const, orderNo: params.get("order") };
-  if (result === "failed") return { ok: false as const, orderNo: params.get("order") };
+  const result = params.get("safepay");
+  if (result === "success" || result === "failed" || result === "cancelled") return { result, orderNo: params.get("order") };
   return null;
 }
+
+const SAFEPAY_ERRORS = {
+  failed: "Your online payment didn't go through. You can try again or choose another payment method.",
+  cancelled: "You cancelled the online payment. Your cart is still here — try again or choose another payment method.",
+};
 
 // the delivery address set from the nav's map popup (Nav / SiteNav / HomeClient), so it doesn't
 // have to be typed in twice
@@ -52,29 +39,30 @@ function readSavedAddress() {
   try { return localStorage.getItem(DELIVERY_ADDRESS_KEY) ?? ""; } catch { return ""; }
 }
 
-export default function CheckoutClient() {
+// onlinePay: whether Safepay keys are set on the server (the option hides otherwise)
+export default function CheckoutClient({ onlinePay }: { onlinePay: boolean }) {
   const { cart, setQty, remove, clear } = useCart();
   const [orderType, setOrderType] = useState<"delivery" | "pickup">("delivery");
-  const [pay, setPay] = useState<"cod" | "easypaisa" | "jazzcash" | "bank">("cod");
+  const [pay, setPay] = useState<"cod" | "easypaisa" | "safepay" | "bank">("cod");
   const [mobile, setMobile] = useState("");
-  const [wallet, setWallet] = useState(""); // the EasyPaisa / JazzCash number
+  const [wallet, setWallet] = useState(""); // the EasyPaisa number, or the bank account/reference
   const bank = pay === "bank";
-  const walletName = pay === "jazzcash" ? "JazzCash" : "EasyPaisa";
   // the wallet number is the customer's own account; a checkbox that copies their contact number makes no sense for a bank transfer
   const choose = (m: typeof pay) => { setPay(m); if (m === "bank") { setSame(false); setWallet(""); } };
   const [same, setSame] = useState(false);
-  const [jazzcashReturn] = useState(readJazzCashReturn);
+  const [safepayReturn] = useState(readSafepayReturn);
   const [savedAddress] = useState(readSavedAddress);
-  const [orderId, setOrderId] = useState<string | null>(() => (jazzcashReturn?.ok ? jazzcashReturn.orderNo : null));
+  const [orderId, setOrderId] = useState<string | null>(() => (safepayReturn?.result === "success" ? safepayReturn.orderNo : null));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(() =>
-    jazzcashReturn && !jazzcashReturn.ok ? "Your JazzCash payment didn't go through. You can try again or choose another payment method." : null
+    safepayReturn && safepayReturn.result !== "success" ? SAFEPAY_ERRORS[safepayReturn.result] : null
   );
 
-  // Clean the return-trip query params out of the URL bar; no state changes here, just history.
+  // Clean the return-trip query params out of the URL bar; the cart is only emptied once the
+  // payment actually went through, so a cancelled or failed payment keeps it for another try.
   useEffect(() => {
-    if (jazzcashReturn) window.history.replaceState({}, "", "/checkout");
-    if (jazzcashReturn?.ok) clear();
+    if (safepayReturn) window.history.replaceState({}, "", "/checkout");
+    if (safepayReturn?.result === "success") clear();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -111,19 +99,18 @@ export default function CheckoutClient() {
       // hand the order to the tracking page so it opens straight to it
       try { localStorage.setItem(LAST_ORDER_KEY, JSON.stringify({ orderNo: data.orderNo, mobile })); } catch { /* storage blocked: they can type it in */ }
 
-      if (pay === "jazzcash") {
-        const payRes = await fetch("/api/payments/jazzcash/start", {
+      if (pay === "safepay") {
+        const payRes = await fetch("/api/payments/safepay/start", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ orderNo: data.orderNo }),
         });
         const payData = await payRes.json().catch(() => ({}));
-        if (!payRes.ok || !payData.action) {
-          setError(payData.error || "Could not start JazzCash payment. Please try again or choose another payment method.");
+        if (!payRes.ok || !payData.url) {
+          setError(payData.error || "Could not start online payment. Please try again or choose another payment method.");
           return;
         }
-        clear();
-        redirectToJazzCash(payData.action, payData.fields); // navigates away to JazzCash
+        window.location.href = payData.url; // navigates away to Safepay; the cart clears when it sends them back paid
         return;
       }
 
@@ -235,10 +222,12 @@ export default function CheckoutClient() {
                         <input type="radio" name="payMethod" value="easypaisa" checked={pay === "easypaisa"} onChange={() => choose("easypaisa")} />
                         <span>Pay with Easypaisa</span>
                       </label>
-                      <label className={"pay-opt" + (pay === "jazzcash" ? " on" : "")}>
-                        <input type="radio" name="payMethod" value="jazzcash" checked={pay === "jazzcash"} onChange={() => choose("jazzcash")} />
-                        <span>Pay with JazzCash</span>
-                      </label>
+                      {onlinePay && (
+                        <label className={"pay-opt" + (pay === "safepay" ? " on" : "")}>
+                          <input type="radio" name="payMethod" value="safepay" checked={pay === "safepay"} onChange={() => choose("safepay")} />
+                          <span>Pay Online <small>JazzCash, Easypaisa, Bank Transfer, Card</small></span>
+                        </label>
+                      )}
                       {BANK.account && (
                         <label className={"pay-opt" + (bank ? " on" : "")}>
                           <input type="radio" name="payMethod" value="bank" checked={bank} onChange={() => choose("bank")} />
@@ -247,7 +236,7 @@ export default function CheckoutClient() {
                       )}
                     </div>
 
-                    <div className={"pay-easypaisa" + (pay === "cod" || pay === "jazzcash" ? " hidden" : "")}>
+                    <div className={"pay-easypaisa" + (pay === "cod" || pay === "safepay" ? " hidden" : "")}>
                       {bank && (
                         <div className="bank-box">
                           <b>Transfer the total to:</b>
@@ -259,10 +248,10 @@ export default function CheckoutClient() {
                         </div>
                       )}
                       <div className="field">
-                        <label htmlFor="fEasypaisa">{bank ? "Your Account Number / Transfer Reference" : `${walletName} Number`}</label>
+                        <label htmlFor="fEasypaisa">{bank ? "Your Account Number / Transfer Reference" : "EasyPaisa Number"}</label>
                         <input
                           type={bank ? "text" : "tel"} id="fEasypaisa" placeholder={bank ? "Account number or reference" : "03XXXXXXXXX"}
-                          required={pay !== "cod" && pay !== "jazzcash"} disabled={same && !bank} minLength={bank ? 4 : undefined} maxLength={bank ? 30 : undefined}
+                          required={pay === "easypaisa" || bank} disabled={same && !bank} minLength={bank ? 4 : undefined} maxLength={bank ? 30 : undefined}
                           value={wallet} onChange={(e) => setWallet(e.target.value)}
                         />
                       </div>
@@ -274,8 +263,8 @@ export default function CheckoutClient() {
                         Same as Contact Number
                       </label>}
                     </div>
-                    {pay === "jazzcash" && (
-                      <p className="jazzcash-note">You&apos;ll be redirected to JazzCash&apos;s secure page to enter your number and confirm the payment.</p>
+                    {pay === "safepay" && (
+                      <p className="online-note">You&apos;ll be taken to Safepay&apos;s secure page to pay with JazzCash, Easypaisa, your bank account or a card.</p>
                     )}
                   </form>
                 </div>

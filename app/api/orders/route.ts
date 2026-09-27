@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   const city = clean(b.city, 40);
   const address = clean(b.address, 250);
   const notes = clean(b.notes, 500);
-  const payMethod = b.payMethod === "easypaisa" || b.payMethod === "jazzcash" || b.payMethod === "bank" ? b.payMethod : "cod";
+  const payMethod = b.payMethod === "easypaisa" || b.payMethod === "safepay" || b.payMethod === "bank" ? b.payMethod : "cod";
   const wallet = clean(b.wallet, 30);
 
   if (!name || !/^\S+@\S+\.\S+$/.test(email)) return bad("Please enter your name and a valid email.");
@@ -39,7 +39,7 @@ export async function POST(req: Request) {
   if (delivery && (!city || !address)) return bad("Please enter your city and address.");
   if (payMethod === "bank" && wallet.length < 4) return bad("Please enter your account number or transfer reference.");
   if (payMethod === "easypaisa" && !/^03\d{9}$/.test(wallet)) return bad("Please enter a valid EasyPaisa number.");
-  // jazzcash needs no wallet number here — JazzCash's own hosted checkout page collects it
+  // safepay needs no wallet number here — the customer picks and enters it on Safepay's hosted page
 
   const lines = Array.isArray(b.items) ? b.items.slice(0, 60) : [];
   if (!lines.length) return bad("Your cart is empty.");
@@ -71,7 +71,7 @@ export async function POST(req: Request) {
       .insert({
         order_no, status: "pending", order_type: b.orderType, customer_name: name, email, mobile,
         city: delivery ? city : null, address: delivery ? address : null, notes: notes || null,
-        pay_method: payMethod, easypaisa_number: payMethod !== "cod" && payMethod !== "jazzcash" ? wallet : null, // one column holds the wallet number for both
+        pay_method: payMethod, easypaisa_number: payMethod === "easypaisa" || payMethod === "bank" ? wallet : null, // one column holds the wallet number for both
         subtotal, delivery_fee, total: subtotal + delivery_fee,
       })
       .select("id")
@@ -89,9 +89,9 @@ export async function POST(req: Request) {
       await db.from("orders").delete().eq("id", data.id); // don't leave an empty order on the admin board
       return NextResponse.json({ error: FAILED }, { status: 500 });
     }
-    // For jazzcash the order isn't real yet until payment is confirmed, so it stays off the
-    // admin board and out of the notification bell until /api/payments/jazzcash/return says so.
-    if (payMethod !== "jazzcash") {
+    // For safepay the order isn't real yet until payment is confirmed, so it stays off the
+    // admin board and out of the notification bell until markPaid (lib/safepay.ts) says so.
+    if (payMethod !== "safepay") {
       await logOrderEvent({
         orderId: data.id, orderNo: order_no, kind: "new_order", actor: "Customer",
         message: `New order ${order_no} from ${name} — Rs. ${(subtotal + delivery_fee).toLocaleString("en-US")}, waiting for approval`,

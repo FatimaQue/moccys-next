@@ -124,11 +124,12 @@
 .pg-checkout .pay-opt.on{border-color:var(--rust);background:rgba(179,18,43,.04);}
 .pg-checkout .pay-opt input{accent-color:var(--rust);width:17px;height:17px;flex:none;}
 .pg-checkout .pay-opt span{font-weight:700;font-size:13.5px;}
+.pg-checkout .pay-opt small{display:block;margin-top:3px;font-weight:500;font-size:12px;color:var(--muted);}
 .pg-checkout .pay-easypaisa{margin-top:16px;}
 .pg-checkout .pay-easypaisa.hidden{display:none;}
 .pg-checkout .checkbox-row{display:flex;align-items:center;gap:9px;margin-top:12px;font-size:12.5px;color:var(--muted);}
 .pg-checkout .checkbox-row input{accent-color:var(--rust);width:15px;height:15px;}
-.pg-checkout .jazzcash-note{margin-top:16px;font-size:12.5px;color:var(--muted);}
+.pg-checkout .online-note{margin-top:16px;font-size:12.5px;color:var(--muted);}
 
 /* ---- order summary ---- */
 .pg-checkout .summary{position:sticky;top:96px;}
