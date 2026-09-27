@@ -2,14 +2,21 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+<<<<<<< HEAD
 import { supabaseBrowser } from "@/lib/supabase/browser";
 import EyeToggle from "./EyeToggle";
 
 export default function SignupClient() {
   const router = useRouter();
   const [step, setStep] = useState<"form" | "code">("form");
+=======
+import EmailOtpStep from "./EmailOtpStep";
+import EyeToggle from "./EyeToggle";
+
+export default function SignupClient() {
+  const [verifying, setVerifying] = useState(false);
+>>>>>>> daff2e9732ded4d21fa7510f933945db5649b93a
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -38,7 +45,11 @@ export default function SignupClient() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data.error || "Something went wrong. Please try again."); return; }
+<<<<<<< HEAD
       setStep("code");
+=======
+      setVerifying(true); // account exists but stays locked until the emailed code is entered
+>>>>>>> daff2e9732ded4d21fa7510f933945db5649b93a
     } catch {
       setError("Network problem. Please try again.");
     } finally {
@@ -73,10 +84,18 @@ export default function SignupClient() {
           </Link>
 
           <div className="login-body">
+<<<<<<< HEAD
             {step === "form" ? (
               <>
                 <h1 className="display">Join<br /><span className="rust">mccoy&apos;s</span></h1>
                 <p className="login-sub">Create an account to order faster next time.</p>
+=======
+            {verifying ? (
+              <EmailOtpStep email={email.trim().toLowerCase()} onBack={() => setVerifying(false)} />
+            ) : (<>
+            <h1 className="display">Join<br /><span className="rust">mccoy&apos;s</span></h1>
+            <p className="login-sub">Create an account to order faster next time.</p>
+>>>>>>> daff2e9732ded4d21fa7510f933945db5649b93a
 
                 <form onSubmit={submit}>
                   <div className="field-row">
@@ -126,6 +145,7 @@ export default function SignupClient() {
                   <button type="submit" className="btn btn-rust login-btn-full" disabled={busy}>{busy ? "Creating account…" : "Create Account"}</button>
                 </form>
 
+<<<<<<< HEAD
                 <p className="login-switch">Already have an account? <Link href="/login">Login</Link></p>
               </>
             ) : (
@@ -151,6 +171,10 @@ export default function SignupClient() {
                 <p className="login-switch">Didn&apos;t get it? <button type="button" className="link-btn" onClick={resend} disabled={codeBusy}>Resend code</button></p>
               </>
             )}
+=======
+            <p className="login-switch">Already have an account? <Link href="/login">Login</Link></p>
+            </>)}
+>>>>>>> daff2e9732ded4d21fa7510f933945db5649b93a
           </div>
         </div>
       </div>

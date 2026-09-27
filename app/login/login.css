@@ -113,6 +113,11 @@
 .pg-login .field-err{font-size:12px;color:var(--rust);font-weight:700;margin:-4px 0 14px;}
 .pg-login .field-ok{font-size:13.5px;color:var(--ink);line-height:1.6;}
 
+/* email code step (signup / unverified login) */
+.pg-login .otp-input{letter-spacing:.5em;font-size:20px;font-weight:700;text-align:center;}
+.pg-login .link-btn{background:none;border:0;padding:0;font:inherit;color:var(--rust);font-weight:700;cursor:pointer;}
+.pg-login .link-btn:disabled{color:var(--muted-d);cursor:default;}
+
 @media (max-width:760px){
   .pg-login .field-row{grid-template-columns:1fr;}
 }

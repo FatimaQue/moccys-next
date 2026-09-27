@@ -1,0 +1,7 @@
+<!-- Paste into Supabase -> Authentication -> Email Templates -> "Confirm signup". Subject: Your McCoy's signup code -->
+<div style="font-family:Arial,Helvetica,sans-serif;max-width:480px;margin:0 auto;padding:24px;color:#0a1230;">
+  <h2 style="margin:0 0 12px;">Welcome to McCoy's!</h2>
+  <p style="margin:0 0 20px;font-size:15px;line-height:1.5;">Enter this code on the website to finish creating your account:</p>
+  <p style="margin:0 0 20px;font-size:32px;font-weight:700;letter-spacing:8px;color:#b5411f;">{{ .Token }}</p>
+  <p style="margin:0;font-size:13px;color:#667;">The code expires in 10 minutes. If you didn't sign up, you can ignore this email.</p>
+</div>

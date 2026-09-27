@@ -4,10 +4,12 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import EmailOtpStep from "./EmailOtpStep";
 import EyeToggle from "./EyeToggle";
 
 export default function LoginClient() {
   const router = useRouter();
+  const [verifying, setVerifying] = useState(false);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -24,6 +26,14 @@ export default function LoginClient() {
         method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email, password }),
       });
       const data = await res.json().catch(() => ({}));
+      if (data.needsVerification) {
+        // signed up earlier but never entered the code: send a fresh one and finish verification here
+        await fetch("/api/auth/resend-code", {
+          method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email }),
+        }).catch(() => {});
+        setVerifying(true);
+        return;
+      }
       if (!res.ok) { setError(data.error || "Something went wrong. Please try again."); return; }
       router.push("/account");
       router.refresh();
@@ -43,6 +53,9 @@ export default function LoginClient() {
           </Link>
 
           <div className="login-body">
+            {verifying ? (
+              <EmailOtpStep email={email.trim().toLowerCase()} onBack={() => setVerifying(false)} />
+            ) : (<>
             <h1 className="display">Hey!<br /><span className="rust">Up for a bite to eat?</span></h1>
             <p className="login-sub">Let&apos;s enjoy your food with mccoy&apos;s!</p>
 
@@ -72,6 +85,7 @@ export default function LoginClient() {
             <p className="login-switch">Don&apos;t have an account? <Link href="/signup">Sign Up</Link></p>
 
             <p className="login-fine">By continuing, you agree to mccoy&apos;s <a href="#">Terms</a> &amp; <a href="/privacy">Privacy Policy</a>.</p>
+            </>)}
           </div>
         </div>
       </div>
