@@ -38,7 +38,8 @@ export async function POST(req: Request) {
   if (b.orderType !== "delivery" && b.orderType !== "pickup") return bad("Invalid order type.");
   if (delivery && (!city || !address)) return bad("Please enter your city and address.");
   if (payMethod === "bank" && wallet.length < 4) return bad("Please enter your account number or transfer reference.");
-  if ((payMethod === "easypaisa" || payMethod === "jazzcash") && !/^03\d{9}$/.test(wallet)) return bad(`Please enter a valid ${payMethod === "jazzcash" ? "JazzCash" : "EasyPaisa"} number.`);
+  if (payMethod === "easypaisa" && !/^03\d{9}$/.test(wallet)) return bad("Please enter a valid EasyPaisa number.");
+  // jazzcash needs no wallet number here — JazzCash's own hosted checkout page collects it
 
   const lines = Array.isArray(b.items) ? b.items.slice(0, 60) : [];
   if (!lines.length) return bad("Your cart is empty.");
@@ -70,7 +71,7 @@ export async function POST(req: Request) {
       .insert({
         order_no, status: "pending", order_type: b.orderType, customer_name: name, email, mobile,
         city: delivery ? city : null, address: delivery ? address : null, notes: notes || null,
-        pay_method: payMethod, easypaisa_number: payMethod !== "cod" ? wallet : null, // one column holds the wallet number for both
+        pay_method: payMethod, easypaisa_number: payMethod !== "cod" && payMethod !== "jazzcash" ? wallet : null, // one column holds the wallet number for both
         subtotal, delivery_fee, total: subtotal + delivery_fee,
       })
       .select("id")
@@ -88,10 +89,14 @@ export async function POST(req: Request) {
       await db.from("orders").delete().eq("id", data.id); // don't leave an empty order on the admin board
       return NextResponse.json({ error: FAILED }, { status: 500 });
     }
-    await logOrderEvent({
-      orderId: data.id, orderNo: order_no, kind: "new_order", actor: "Customer",
-      message: `New order ${order_no} from ${name} — Rs. ${(subtotal + delivery_fee).toLocaleString("en-US")}, waiting for approval`,
-    });
+    // For jazzcash the order isn't real yet until payment is confirmed, so it stays off the
+    // admin board and out of the notification bell until /api/payments/jazzcash/return says so.
+    if (payMethod !== "jazzcash") {
+      await logOrderEvent({
+        orderId: data.id, orderNo: order_no, kind: "new_order", actor: "Customer",
+        message: `New order ${order_no} from ${name} — Rs. ${(subtotal + delivery_fee).toLocaleString("en-US")}, waiting for approval`,
+      });
+    }
     return NextResponse.json({ orderNo: order_no });
   }
   return NextResponse.json({ error: FAILED }, { status: 500 });

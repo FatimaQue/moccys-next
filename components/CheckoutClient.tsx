@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { DELIVERY_FEE } from "@/lib/pricing";
 import { money, useCart } from "./CartProvider";
 import { LAST_ORDER_KEY } from "./TrackClient";
@@ -16,6 +16,34 @@ const BANK = {
   iban: process.env.NEXT_PUBLIC_BANK_IBAN || "",
 };
 
+// Hands the browser off to JazzCash's hosted checkout page via a real (auto-submitted) form
+// POST — the fields include a secure hash, so this can't be done with a plain redirect/fetch.
+function redirectToJazzCash(action: string, fields: Record<string, string>) {
+  const form = document.createElement("form");
+  form.method = "POST";
+  form.action = action;
+  for (const [k, v] of Object.entries(fields)) {
+    const input = document.createElement("input");
+    input.type = "hidden";
+    input.name = k;
+    input.value = v;
+    form.appendChild(input);
+  }
+  document.body.appendChild(form);
+  form.submit();
+}
+
+// Reads what JazzCash's hosted page put on the return URL, once, before first render — a plain
+// value used to seed initial state, not an effect, so there's no setState-after-mount involved.
+function readJazzCashReturn() {
+  if (typeof window === "undefined") return null;
+  const params = new URLSearchParams(window.location.search);
+  const result = params.get("jazzcash");
+  if (result === "success") return { ok: true as const, orderNo: params.get("order") };
+  if (result === "failed") return { ok: false as const, orderNo: params.get("order") };
+  return null;
+}
+
 export default function CheckoutClient() {
   const { cart, setQty, remove, clear } = useCart();
   const [orderType, setOrderType] = useState<"delivery" | "pickup">("delivery");
@@ -27,9 +55,19 @@ export default function CheckoutClient() {
   // the wallet number is the customer's own account; a checkbox that copies their contact number makes no sense for a bank transfer
   const choose = (m: typeof pay) => { setPay(m); if (m === "bank") { setSame(false); setWallet(""); } };
   const [same, setSame] = useState(false);
-  const [orderId, setOrderId] = useState<string | null>(null);
+  const [jazzcashReturn] = useState(readJazzCashReturn);
+  const [orderId, setOrderId] = useState<string | null>(() => (jazzcashReturn?.ok ? jazzcashReturn.orderNo : null));
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() =>
+    jazzcashReturn && !jazzcashReturn.ok ? "Your JazzCash payment didn't go through. You can try again or choose another payment method." : null
+  );
+
+  // Clean the return-trip query params out of the URL bar; no state changes here, just history.
+  useEffect(() => {
+    if (jazzcashReturn) window.history.replaceState({}, "", "/checkout");
+    if (jazzcashReturn?.ok) clear();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const delivery = orderType === "delivery";
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
@@ -63,6 +101,23 @@ export default function CheckoutClient() {
       }
       // hand the order to the tracking page so it opens straight to it
       try { localStorage.setItem(LAST_ORDER_KEY, JSON.stringify({ orderNo: data.orderNo, mobile })); } catch { /* storage blocked: they can type it in */ }
+
+      if (pay === "jazzcash") {
+        const payRes = await fetch("/api/payments/jazzcash/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderNo: data.orderNo }),
+        });
+        const payData = await payRes.json().catch(() => ({}));
+        if (!payRes.ok || !payData.action) {
+          setError(payData.error || "Could not start JazzCash payment. Please try again or choose another payment method.");
+          return;
+        }
+        clear();
+        redirectToJazzCash(payData.action, payData.fields); // navigates away to JazzCash
+        return;
+      }
+
       setOrderId(data.orderNo);
       clear();
     } catch {
@@ -183,7 +238,7 @@ export default function CheckoutClient() {
                       )}
                     </div>
 
-                    <div className={"pay-easypaisa" + (pay === "cod" ? " hidden" : "")}>
+                    <div className={"pay-easypaisa" + (pay === "cod" || pay === "jazzcash" ? " hidden" : "")}>
                       {bank && (
                         <div className="bank-box">
                           <b>Transfer the total to:</b>
@@ -198,7 +253,7 @@ export default function CheckoutClient() {
                         <label htmlFor="fEasypaisa">{bank ? "Your Account Number / Transfer Reference" : `${walletName} Number`}</label>
                         <input
                           type={bank ? "text" : "tel"} id="fEasypaisa" placeholder={bank ? "Account number or reference" : "03XXXXXXXXX"}
-                          required={pay !== "cod"} disabled={same && !bank} minLength={bank ? 4 : undefined} maxLength={bank ? 30 : undefined}
+                          required={pay !== "cod" && pay !== "jazzcash"} disabled={same && !bank} minLength={bank ? 4 : undefined} maxLength={bank ? 30 : undefined}
                           value={wallet} onChange={(e) => setWallet(e.target.value)}
                         />
                       </div>
@@ -210,6 +265,9 @@ export default function CheckoutClient() {
                         Same as Contact Number
                       </label>}
                     </div>
+                    {pay === "jazzcash" && (
+                      <p className="jazzcash-note">You&apos;ll be redirected to JazzCash&apos;s secure page to enter your number and confirm the payment.</p>
+                    )}
                   </form>
                 </div>
               )}

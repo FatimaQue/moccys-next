@@ -3,28 +3,23 @@
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { supabaseBrowser } from "@/lib/supabase/browser";
 
-type Role = "admin" | "driver";
-
+// One phone + password field for everyone — admin or rider. The server looks the phone number up and
+// decides the role itself, so nobody has to pick a tab first. If that phone hasn't set a password yet
+// (a rider the admin just added, or an admin migrating off the old email sign-in), the server says so
+// and this switches itself into "choose a password" mode instead of showing an error.
 export default function AdminLogin() {
   const router = useRouter();
-  const [role, setRole] = useState<Role>("admin");
-  const [firstTime, setFirstTime] = useState(false); // driver setting a PIN for the first time
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [pin, setPin] = useState("");
+  const [password, setPassword] = useState("");
+  const [firstTime, setFirstTime] = useState(false);
+  const [name, setName] = useState("");
   const [confirm, setConfirm] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const digits = (v: string) => v.replace(/\D/g, "").slice(0, 6);
-  const switchRole = (r: Role) => { setRole(r); setFirstTime(false); setError(null); };
-
   const done = () => {
-    // /dashboard looks up the role and forwards admins to /admin and drivers to /driver
+    // /dashboard looks up the role and forwards admins to /admin and riders to /driver
     router.replace("/dashboard");
     router.refresh();
   };
@@ -34,15 +29,20 @@ export default function AdminLogin() {
     setBusy(true);
     setError(null);
 
-    if (role === "admin") {
-      const { error } = await supabaseBrowser().auth.signInWithPassword({ email, password });
-      if (error) { setError("Wrong email or password."); setBusy(false); return; }
-      return done();
+    if (!firstTime) {
+      const res = await fetch("/api/staff/login", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone, password }),
+      }).catch(() => null);
+      const data = res ? ((await res.json().catch(() => ({}))) as { ok?: boolean; firstTime?: boolean; error?: string }) : null;
+      setBusy(false);
+      if (data?.ok) return done();
+      if (data?.firstTime) { setFirstTime(true); setPassword(""); return; }
+      setError(data ? data.error ?? "Something went wrong." : "Couldn't reach the server. Check your connection.");
+      return;
     }
 
-    const res = await fetch(firstTime ? "/api/driver/claim" : "/api/driver/login", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(firstTime ? { phone, name, pin, confirm } : { phone, pin }),
+    const res = await fetch("/api/staff/claim", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ phone, name, password, confirm }),
     }).catch(() => null);
     if (res?.ok) return done();
     setError(res ? ((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Something went wrong." : "Couldn't reach the server. Check your connection.");
@@ -53,51 +53,45 @@ export default function AdminLogin() {
     <div className="signin">
       <form className="signin-card" onSubmit={submit}>
         <Image className="brand-logo" src="/images/Logo-01.png" alt="McCoy's" width={160} height={32} />
-        <h1 className="display">{role === "admin" ? "Admin sign in" : firstTime ? "Set your PIN" : "Driver sign in"}</h1>
+        <h1 className="display">{firstTime ? "Set your password" : "Staff sign in"}</h1>
+        <p>{firstTime ? "Enter the name the manager registered, then choose a password." : "Sign in with your phone number and password."}</p>
 
-        <div className="role-tabs" role="tablist">
-          <button type="button" role="tab" aria-selected={role === "admin"} className={role === "admin" ? "on" : ""} onClick={() => switchRole("admin")}>Admin</button>
-          <button type="button" role="tab" aria-selected={role === "driver"} className={role === "driver" ? "on" : ""} onClick={() => switchRole("driver")}>Driver</button>
-        </div>
-
-        {role === "admin" ? (
+        {firstTime && (
           <>
-            <p>Sign in to manage incoming orders.</p>
-            <label htmlFor="aEmail">Email</label>
-            <input id="aEmail" type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
-            <label htmlFor="aPass">Password</label>
-            <input id="aPass" type="password" autoComplete="current-password" required value={password} onChange={(e) => setPassword(e.target.value)} />
+            <label htmlFor="sName">Full name</label>
+            <input id="sName" type="text" autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} />
           </>
-        ) : (
+        )}
+
+        <label htmlFor="sPhone">Phone number</label>
+        <input
+          id="sPhone" type="tel" inputMode="tel" autoComplete="tel" placeholder="03001234567" required
+          value={phone} onChange={(e) => { setPhone(e.target.value); setError(null); }}
+        />
+
+        <label htmlFor="sPass">{firstTime ? "Choose a password" : "Password"}</label>
+        <input
+          id="sPass" type="password" minLength={firstTime ? 4 : undefined} maxLength={40}
+          autoComplete={firstTime ? "new-password" : "current-password"} required
+          value={password} onChange={(e) => setPassword(e.target.value)}
+        />
+
+        {firstTime && (
           <>
-            <p>{firstTime ? "Enter the name and number the manager registered, then choose a 6-digit PIN." : "Sign in with your phone number and PIN."}</p>
-            {firstTime && (
-              <>
-                <label htmlFor="dName">Full name</label>
-                <input id="dName" type="text" autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} />
-              </>
-            )}
-            <label htmlFor="dPhone">Phone number</label>
-            <input id="dPhone" type="tel" inputMode="tel" autoComplete="tel" placeholder="03001234567" required value={phone} onChange={(e) => setPhone(e.target.value)} />
-            <label htmlFor="dPin">{firstTime ? "Choose a PIN (6 digits)" : "PIN"}</label>
-            <input id="dPin" type="password" inputMode="numeric" pattern="\d{6}" maxLength={6} autoComplete={firstTime ? "new-password" : "current-password"} required value={pin} onChange={(e) => setPin(digits(e.target.value))} />
-            {firstTime && (
-              <>
-                <label htmlFor="dPin2">Retype PIN</label>
-                <input id="dPin2" type="password" inputMode="numeric" pattern="\d{6}" maxLength={6} autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(digits(e.target.value))} />
-              </>
-            )}
+            <label htmlFor="sPass2">Retype password</label>
+            <input id="sPass2" type="password" minLength={4} maxLength={40} autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
           </>
         )}
 
         {error && <p className="signin-err" role="alert">{error}</p>}
-        <button type="submit" disabled={busy}>{busy ? "Please wait…" : role === "driver" && firstTime ? "Save PIN & sign in" : "Sign in"}</button>
+        <button type="submit" disabled={busy}>{busy ? "Please wait…" : firstTime ? "Save password & sign in" : "Sign in"}</button>
 
-        {role === "driver" && (
-          <button type="button" className="signin-link" onClick={() => { setFirstTime((f) => !f); setError(null); setPin(""); setConfirm(""); }}>
-            {firstTime ? "Already have a PIN? Sign in" : "First time? Set your PIN"}
-          </button>
-        )}
+        <button
+          type="button" className="signin-link"
+          onClick={() => { setFirstTime((f) => !f); setError(null); setPassword(""); setConfirm(""); }}
+        >
+          {firstTime ? "Already have a password? Sign in" : "First time? Set your password"}
+        </button>
       </form>
     </div>
   );

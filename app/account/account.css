@@ -1,4 +1,7 @@
-.pg-account .acct{max-width:860px;margin:0 auto;padding:34px 22px 80px;min-height:70vh;color:var(--ink);}
+/* keeps the footer flush with the bottom of the viewport even when a tab (e.g. Saved Addresses
+   with few entries) isn't tall enough to fill the screen on its own */
+.pg-account{display:flex;flex-direction:column;min-height:100vh;}
+.pg-account .acct{flex:1 0 auto;max-width:860px;margin:0 auto;padding:34px 22px 80px;min-height:70vh;color:var(--ink);width:100%;}
 .pg-account .acct-head{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px;}
 .pg-account .acct-head h1{font-family:'Exo 2',sans-serif;font-weight:800;font-size:clamp(26px,4vw,36px);}
 .pg-account .acct-logout{background:none;border:1.5px solid rgba(10,18,48,.2);border-radius:999px;padding:8px 16px;font:inherit;font-size:12px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);cursor:pointer;}

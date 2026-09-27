@@ -1,6 +1,6 @@
 import "server-only";
 import { createHmac, randomInt, timingSafeEqual } from "node:crypto";
-import { normalizePhone } from "./driverPin";
+import { normalizePhone } from "./staffAuth";
 import { supabaseAdmin } from "./supabase/admin";
 import { supabaseServer } from "./supabase/server";
 

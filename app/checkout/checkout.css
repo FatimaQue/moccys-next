@@ -128,6 +128,7 @@
 .pg-checkout .pay-easypaisa.hidden{display:none;}
 .pg-checkout .checkbox-row{display:flex;align-items:center;gap:9px;margin-top:12px;font-size:12.5px;color:var(--muted);}
 .pg-checkout .checkbox-row input{accent-color:var(--rust);width:15px;height:15px;}
+.pg-checkout .jazzcash-note{margin-top:16px;font-size:12.5px;color:var(--muted);}
 
 /* ---- order summary ---- */
 .pg-checkout .summary{position:sticky;top:96px;}

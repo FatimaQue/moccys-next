@@ -58,6 +58,7 @@
 
 .pg-login .login-btn-phone{width:100%;margin-bottom:14px;}
 .pg-login .login-btn-guest{width:100%;}
+.pg-login .login-btn-full{width:100%;}
 
 .pg-login .phone-reveal{
   max-height:0;overflow:hidden;opacity:0;transition:max-height .3s ease,opacity .25s ease,margin .3s ease;
@@ -78,6 +79,41 @@
 
 .pg-login .login-fine{margin-top:30px;font-size:11.5px;color:var(--muted-d);text-align:center;}
 .pg-login .login-fine a{color:var(--rust);font-weight:700;}
+
+/* ============ labeled form fields (login / signup / password reset) ============ */
+.pg-login .field{display:flex;flex-direction:column;gap:7px;margin-bottom:16px;position:relative;}
+.pg-login .field label{font-size:12.5px;font-weight:700;color:var(--ink);}
+.pg-login .field label i{color:var(--rust);font-style:normal;}
+.pg-login .field input{
+  width:100%;background:#fff;border:1.5px solid rgba(10,18,48,.14);border-radius:6px;
+  padding:14px 16px;font:inherit;font-size:13.5px;color:var(--ink);transition:border-color .15s ease;
+}
+.pg-login .field input::placeholder{color:var(--muted-d);}
+.pg-login .field input:focus{outline:none;border-color:var(--rust);}
+.pg-login .field-pass input{padding-right:44px;}
+.pg-login .field-eye{
+  position:absolute;right:12px;top:38px;background:none;border:0;padding:4px;cursor:pointer;color:var(--muted);display:flex;
+}
+.pg-login .field-eye svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;}
+.pg-login .field-eye:hover{color:var(--rust);}
+
+.pg-login .field-row{display:grid;grid-template-columns:1fr 1fr;gap:0 14px;}
+
+.pg-login .forgot-row{display:flex;justify-content:flex-end;margin:-8px 0 18px;}
+.pg-login .forgot-row a{font-size:12.5px;font-weight:700;color:var(--rust);}
+
+.pg-login .login-divider{display:flex;align-items:center;gap:12px;margin:22px 0;color:var(--muted-d);font-size:11px;text-transform:uppercase;letter-spacing:.08em;}
+.pg-login .login-divider::before,.pg-login .login-divider::after{content:"";flex:1;height:1px;background:rgba(10,18,48,.12);}
+
+.pg-login .login-switch{margin-top:22px;text-align:center;font-size:13px;color:var(--muted);}
+.pg-login .login-switch a{color:var(--rust);font-weight:700;}
+
+.pg-login .field-err{font-size:12px;color:var(--rust);font-weight:700;margin:-4px 0 14px;}
+.pg-login .field-ok{font-size:13.5px;color:var(--ink);line-height:1.6;}
+
+@media (max-width:760px){
+  .pg-login .field-row{grid-template-columns:1fr;}
+}
 
 .pg-login .login-art{flex:1 1 44%;min-width:0;position:relative;overflow:hidden;background:var(--ink);}
 .pg-login .login-art-img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;z-index:1;}

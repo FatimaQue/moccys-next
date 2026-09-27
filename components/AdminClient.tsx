@@ -252,14 +252,14 @@ export default function AdminClient() {
             </a>
             <a className={"navlink" + (page === "drivers" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setPage("drivers"); }}>
               <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg>
-              Drivers
+              Riders
             </a>
           </nav>
         </aside>
 
         <div className="main">
           <header className="topbar">
-            <h1>{page === "dashboard" ? "Dashboard — Live" : page === "reports" ? "Reports" : page === "inventory" ? "Inventory" : page === "drivers" ? "Drivers" : "Orders"}</h1>
+            <h1>{page === "dashboard" ? "Dashboard — Live" : page === "reports" ? "Reports" : page === "inventory" ? "Inventory" : page === "drivers" ? "Riders" : "Orders"}</h1>
             <div className="topbar-right">
               <div className="bell-wrap">
                 <button className="bell" aria-label={unread ? `${unread} unread notifications` : "Notifications"} aria-expanded={bellOpen} onClick={openBell}>
@@ -377,7 +377,7 @@ export default function AdminClient() {
                                 {phase === "ready" && (
                                   <div className="card-actions">
                                     <select className="driver-pick" value={pick[o.dbId] ?? (activeDrivers.length === 1 ? activeDrivers[0].id : "")} onChange={(e) => setPick((p) => ({ ...p, [o.dbId]: e.target.value }))}>
-                                      <option value="">{activeDrivers.length ? "Pick driver…" : "No drivers yet"}</option>
+                                      <option value="">{activeDrivers.length ? "Pick rider…" : "No riders yet"}</option>
                                       {activeDrivers.map((d) => <option key={d.id} value={d.id}>{d.name}</option>)}
                                     </select>
                                     <button className="btn-ready" onClick={() => handleAction(o.dbId, "dispatch")}>Send Out</button>

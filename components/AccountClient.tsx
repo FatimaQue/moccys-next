@@ -15,12 +15,13 @@ const TABS: { id: Tab; label: string }[] = [
 ];
 
 export default function AccountClient({
-  phone, initialName, initialBirthday, initialAddresses,
+  phone: initialPhone, initialName, initialBirthday, initialAddresses,
 }: { phone: string; initialName: string; initialBirthday: string; initialAddresses: Address[] }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("profile");
 
   const [name, setName] = useState(initialName);
+  const [phone, setPhone] = useState(initialPhone);
   const [birthday, setBirthday] = useState(initialBirthday);
   const [addresses, setAddresses] = useState<Address[]>(initialAddresses);
   const [label, setLabel] = useState("");
@@ -82,14 +83,12 @@ export default function AccountClient({
       </div>
 
       {tab === "profile" && (
-        <form className="acct-form" onSubmit={(e) => { e.preventDefault(); save({ full_name: name.trim(), birthday }, "Profile updated."); }}>
+        <form className="acct-form" onSubmit={(e) => { e.preventDefault(); save({ full_name: name.trim(), phone: phone.trim(), birthday }, "Profile updated."); }}>
           <div className="acct-avatar" aria-hidden="true">
             <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 20c0-4 4-6 8-6s8 2 8 6" /></svg>
           </div>
           <label>Full Name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder="Your name" /></label>
-          <label>Phone Number
-            <span className="acct-phone"><input value={phone} readOnly aria-readonly="true" /><b>Verified</b></span>
-          </label>
+          <label>Phone Number<input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={11} inputMode="tel" placeholder="03XXXXXXXXX" /></label>
           <label>Date of Birthday<input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} /></label>
           <button type="submit" className="btn btn-rust" disabled={saving}>{saving ? "Saving…" : "Update"}</button>
         </form>
