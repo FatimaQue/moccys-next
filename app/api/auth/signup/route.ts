@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
 import { normalizePhone } from "@/lib/staffAuth";
-import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
 const bad = (error: string, status = 400) => NextResponse.json({ error }, { status });
+const ALREADY = "An account with that email already exists. Please log in instead.";
 const clean = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const MIN_PASSWORD = 8;
 const MAX_PASSWORD = 72; // Supabase Auth (bcrypt underneath) only looks at the first 72 characters anyway
@@ -31,25 +31,29 @@ export async function POST(req: Request) {
   if (password.length < MIN_PASSWORD || password.length > MAX_PASSWORD) return bad(`Password must be at least ${MIN_PASSWORD} characters.`);
   if (password !== confirmPassword) return bad("Passwords don't match.");
 
-  // email_confirm skips the "click the link we emailed you" step, same call as lib/waLogin.ts /
-  // lib/staffAuth.ts make for their own accounts — this app doesn't gate any login on email confirmation
-  const { error: createErr } = await supabaseAdmin().auth.admin.createUser({
-    email, password, email_confirm: true,
-    user_metadata: { role: "customer", full_name: `${firstName} ${lastName}`, phone },
+  // with "Confirm email" on in Supabase, signUp creates the account unconfirmed and emails a 6-digit code
+  // (Confirm signup template uses {{ .Token }}); no session until /api/auth/verify-email checks it
+  const supabase = await supabaseServer();
+  const { data, error } = await supabase.auth.signUp({
+    email, password,
+    options: { data: { role: "customer", full_name: `${firstName} ${lastName}`, phone } },
   });
-  if (createErr) {
-    if (/already|registered/i.test(createErr.message)) {
-      return bad("An account with that email already exists. Please log in instead.", 409);
+  if (error) {
+    if (error.status === 429) {
+      // over_email_send_rate_limit = project-wide hourly email cap (tiny on Supabase's built-in mailer);
+      // anything else here is the per-address 60s gap between codes
+      console.warn("signup rate limited", error.code, error.message);
+      return bad(error.code === "over_email_send_rate_limit"
+        ? "We're sending a lot of emails right now. Please try again in a little while."
+        : "Please wait a minute before requesting another code.", 429);
     }
-    console.error("signup failed", createErr.message);
+    if (/already|registered/i.test(error.message)) return bad(ALREADY, 409);
+    console.error("signup failed", error.message);
     return bad("Could not create your account. Please try again.", 500);
   }
+  // a confirmed account with this email already exists: Supabase returns a fake user with no identities
+  // instead of an error. An unconfirmed one just gets a fresh code, which is what we want.
+  if (!data.user?.identities?.length) return bad(ALREADY, 409);
 
-  const supabase = await supabaseServer();
-  const { error: signInErr } = await supabase.auth.signInWithPassword({ email, password });
-  if (signInErr) {
-    console.error("post-signup sign-in failed", signInErr.message);
-    return bad("Your account was created, but we couldn't sign you in automatically. Please log in.", 500);
-  }
-  return NextResponse.json({ ok: true });
+  return NextResponse.json({ ok: true, verify: true });
 }

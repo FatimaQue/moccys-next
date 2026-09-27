@@ -11,6 +11,10 @@ export async function POST(req: Request) {
 
   const supabase = await supabaseServer();
   const { error } = await supabase.auth.signInWithPassword({ email, password });
+  // Supabase only reports this after the password matched, so it doesn't reveal anything to a stranger
+  if (error?.code === "email_not_confirmed") {
+    return NextResponse.json({ error: "Please verify your email first.", needsVerification: true }, { status: 403 });
+  }
   // one message for "no such account" and "wrong password" alike, so a login attempt can't be used to
   // discover which emails have accounts
   if (error) return bad("Incorrect email or password.", 401);

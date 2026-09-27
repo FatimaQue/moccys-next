@@ -2,12 +2,12 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import EmailOtpStep from "./EmailOtpStep";
 import EyeToggle from "./EyeToggle";
 
 export default function SignupClient() {
-  const router = useRouter();
+  const [verifying, setVerifying] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
   const [email, setEmail] = useState("");
@@ -31,8 +31,7 @@ export default function SignupClient() {
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) { setError(data.error || "Something went wrong. Please try again."); return; }
-      router.push("/account");
-      router.refresh();
+      setVerifying(true); // account exists but stays locked until the emailed code is entered
     } catch {
       setError("Network problem. Please try again.");
     } finally {
@@ -49,6 +48,9 @@ export default function SignupClient() {
           </Link>
 
           <div className="login-body">
+            {verifying ? (
+              <EmailOtpStep email={email.trim().toLowerCase()} onBack={() => setVerifying(false)} />
+            ) : (<>
             <h1 className="display">Join<br /><span className="rust">mccoy&apos;s</span></h1>
             <p className="login-sub">Create an account to order faster next time.</p>
 
@@ -101,6 +103,7 @@ export default function SignupClient() {
             </form>
 
             <p className="login-switch">Already have an account? <Link href="/login">Login</Link></p>
+            </>)}
           </div>
         </div>
       </div>
