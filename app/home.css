@@ -113,6 +113,8 @@
 .pg-home .findbox input:focus{outline:0;}
 .pg-home .findbox .go{flex:none;color:var(--muted-d);}
 /* long search bar dominates the middle; the address box trails it at a fixed, narrower width — same ratio as the reference */
+.pg-home .findbox-clear{flex:none;background:none;border:0;color:var(--muted-d);font-size:18px;line-height:1;cursor:pointer;padding:0 2px;}
+.pg-home .findbox-clear:hover{color:#fff;}
 .pg-home .findbox-search{flex:1;min-width:0;}
 .pg-home .findbox-loc{flex:none;width:230px;cursor:pointer;}
 

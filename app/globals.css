@@ -1,6 +1,7 @@
 /* Each page's own rules live next to it (menu/menu.css, checkout/checkout.css, ...) and are scoped
    under a wrapper class, so pages can't override each other. Only what must touch <html>/<body> is here. */
-html{scroll-behavior:smooth;}
+html{scroll-behavior:smooth;scrollbar-width:none;}
+html::-webkit-scrollbar{display:none;}
 *{box-sizing:border-box;}
 body{margin:0;}
 body.mnav-lock,body.cart-lock,body.addr-lock,body.pickup-lock{overflow:hidden;}

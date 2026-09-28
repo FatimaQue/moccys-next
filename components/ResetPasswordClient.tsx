@@ -35,7 +35,12 @@ export default function ResetPasswordClient() {
     setBusy(true); setError("");
     const { error } = await supabaseBrowser().auth.updateUser({ password });
     setBusy(false);
-    if (error) { setError("Could not update your password. Please request a new reset link."); return; }
+    if (error) {
+      // Supabase's own reasons (e.g. "same_password" — reusing the current password) are more useful
+      // than a generic failure message, so show them instead of guessing
+      setError(error.code === "same_password" ? "Please choose a password different from your current one." : error.message);
+      return;
+    }
     router.push("/account");
     router.refresh();
   };

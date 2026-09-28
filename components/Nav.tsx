@@ -3,8 +3,9 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCart } from "./CartProvider";
+import { useMenu } from "./MenuProvider";
 import { supabaseBrowser } from "@/lib/supabase/browser";
 
 export const DELIVERY_ADDRESS_KEY = "mccoysDeliveryAddress";
@@ -33,7 +34,9 @@ export default function Nav({
   links = MENU_LINKS, onCartClick, onDeliveryClick, onPickupClick, onAddressClick, address, onAddressChange,
 }: Props) {
   const router = useRouter();
+  const pathname = usePathname();
   const { count } = useCart();
+  const { query, setQuery } = useMenu();
   const [open, setOpen] = useState(false);
   const [account, setAccount] = useState(false);
   const [fulfill, setFulfill] = useState<"delivery" | "pickup">("delivery");
@@ -71,6 +74,12 @@ export default function Nav({
     (f === "delivery" ? onDeliveryClick : onPickupClick)?.();
   };
 
+  // typing filters the menu live once you're there; from anywhere else, Enter takes you to the
+  // results (the query is shared state, so it's already applied by the time the page loads)
+  const searchKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Enter" && pathname !== "/menu") router.push("/menu");
+  };
+
   return (
     <header className="nav">
       <div className="nav-inner">
@@ -96,7 +105,13 @@ export default function Nav({
         <div className="navfind">
           <div className="findbox findbox-search">
             <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7" /><path d="M21 21l-4.3-4.3" /></svg>
-            <input type="text" placeholder="Find in mccoy's" aria-label="Find in mccoy's" />
+            <input
+              type="text" placeholder="Find in mccoy's" aria-label="Find in mccoy's"
+              value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={searchKeyDown}
+            />
+            {query && (
+              <button type="button" className="findbox-clear" aria-label="Clear search" onClick={() => setQuery("")}>&times;</button>
+            )}
           </div>
           <div className="findbox findbox-loc" onClick={onAddressClick}>
             <svg viewBox="0 0 24 24" fill="currentColor" stroke="none" style={{ color: "var(--muted-d)" }}><path d="M12 2a7 7 0 00-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 00-7-7zm0 9.5A2.5 2.5 0 1114.5 9 2.5 2.5 0 0112 11.5z" /></svg>
