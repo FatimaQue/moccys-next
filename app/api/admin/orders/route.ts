@@ -21,8 +21,8 @@ export async function GET() {
   const { data, error } = await supabaseAdmin()
     .from("orders")
     .select("id, order_no, status, order_type, customer_name, mobile, city, address, notes, pay_method, easypaisa_number, payment_status, total, created_at, out_at, delivered_at, driver:profiles!driver_id(name), order_items(name, price, qty, is_addon)")
-    // an unpaid/failed JazzCash checkout never reached the kitchen, so it shouldn't show up here
-    .or("pay_method.neq.jazzcash,payment_status.eq.paid")
+    // an unpaid/abandoned online (Safepay, or older JazzCash) checkout never reached the kitchen, so it shouldn't show up here
+    .or("pay_method.not.in.(safepay,jazzcash),payment_status.eq.paid")
     .order("created_at", { ascending: false })
     .limit(200)
     .returns<Row[]>();
@@ -40,7 +40,7 @@ export async function GET() {
       ...o.order_items.map((i) => `${i.qty}x ${i.name}${i.is_addon ? " (add-on)" : ""}`),
       `${o.order_type === "delivery" ? "Delivery" : "Pick-up"} · ${o.mobile}`,
       ...(o.order_type === "delivery" ? [[o.address, o.city].filter(Boolean).join(", ")] : []),
-      o.pay_method === "easypaisa" ? `EasyPaisa · ${o.easypaisa_number}` : o.pay_method === "jazzcash" ? "JazzCash · Paid" : o.pay_method === "bank" ? `Bank transfer · ${o.easypaisa_number}` : "Cash on delivery",
+      o.pay_method === "easypaisa" ? `EasyPaisa · ${o.easypaisa_number}` : o.pay_method === "safepay" ? "Paid online · Safepay" : o.pay_method === "jazzcash" ? "JazzCash · Paid" : o.pay_method === "bank" ? `Bank transfer · ${o.easypaisa_number}` : "Cash on delivery",
       ...(o.notes ? [`"${o.notes}"`] : []),
     ];
     return {

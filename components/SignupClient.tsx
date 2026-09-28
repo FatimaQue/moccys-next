@@ -54,53 +54,53 @@ export default function SignupClient() {
             <h1 className="display">Join<br /><span className="rust">mccoy&apos;s</span></h1>
             <p className="login-sub">Create an account to order faster next time.</p>
 
-                <form onSubmit={submit}>
-                  <div className="field-row">
-                    <div className="field">
-                      <label htmlFor="fFirst">Enter First Name<i>*</i></label>
-                      <input id="fFirst" type="text" placeholder="First Name" required maxLength={60} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-                    </div>
-                    <div className="field">
-                      <label htmlFor="fLast">Enter Last Name<i>*</i></label>
-                      <input id="fLast" type="text" placeholder="Last Name" required maxLength={60} value={lastName} onChange={(e) => setLastName(e.target.value)} />
-                    </div>
-                  </div>
+            <form onSubmit={submit}>
+              <div className="field-row">
+                <div className="field">
+                  <label htmlFor="fFirst">Enter First Name<i>*</i></label>
+                  <input id="fFirst" type="text" placeholder="First Name" required maxLength={60} value={firstName} onChange={(e) => setFirstName(e.target.value)} />
+                </div>
+                <div className="field">
+                  <label htmlFor="fLast">Enter Last Name<i>*</i></label>
+                  <input id="fLast" type="text" placeholder="Last Name" required maxLength={60} value={lastName} onChange={(e) => setLastName(e.target.value)} />
+                </div>
+              </div>
 
-                  <div className="field">
-                    <label htmlFor="fEmail">Enter Email<i>*</i></label>
-                    <input id="fEmail" type="email" placeholder="Email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-                  </div>
+              <div className="field">
+                <label htmlFor="fEmail">Enter Email<i>*</i></label>
+                <input id="fEmail" type="email" placeholder="Email" required autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} />
+              </div>
 
-                  <div className="field">
-                    <label htmlFor="fPhone">Enter Phone number<i>*</i></label>
-                    <input
-                      id="fPhone" type="tel" placeholder="03XXXXXXXXX" required inputMode="tel"
-                      value={phone} onChange={(e) => setPhone(e.target.value)}
-                    />
-                  </div>
+              <div className="field">
+                <label htmlFor="fPhone">Enter Phone number<i>*</i></label>
+                <input
+                  id="fPhone" type="tel" placeholder="03XXXXXXXXX" required inputMode="tel"
+                  value={phone} onChange={(e) => setPhone(e.target.value)}
+                />
+              </div>
 
-                  <div className="field field-pass">
-                    <label htmlFor="fPassword">Enter Password<i>*</i></label>
-                    <input
-                      id="fPassword" type={showPassword ? "text" : "password"} placeholder="Password" required minLength={8}
-                      autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)}
-                    />
-                    <EyeToggle shown={showPassword} onToggle={() => setShowPassword((s) => !s)} />
-                  </div>
+              <div className="field field-pass">
+                <label htmlFor="fPassword">Enter Password<i>*</i></label>
+                <input
+                  id="fPassword" type={showPassword ? "text" : "password"} placeholder="Password" required minLength={8}
+                  autoComplete="new-password" value={password} onChange={(e) => setPassword(e.target.value)}
+                />
+                <EyeToggle shown={showPassword} onToggle={() => setShowPassword((s) => !s)} />
+              </div>
 
-                  <div className="field field-pass">
-                    <label htmlFor="fConfirm">Confirm Password<i>*</i></label>
-                    <input
-                      id="fConfirm" type={showConfirm ? "text" : "password"} placeholder="Confirm Password" required minLength={8}
-                      autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
-                    />
-                    <EyeToggle shown={showConfirm} onToggle={() => setShowConfirm((s) => !s)} />
-                  </div>
+              <div className="field field-pass">
+                <label htmlFor="fConfirm">Confirm Password<i>*</i></label>
+                <input
+                  id="fConfirm" type={showConfirm ? "text" : "password"} placeholder="Confirm Password" required minLength={8}
+                  autoComplete="new-password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)}
+                />
+                <EyeToggle shown={showConfirm} onToggle={() => setShowConfirm((s) => !s)} />
+              </div>
 
-                  {error && <p className="field-err" role="alert">{error}</p>}
+              {error && <p className="field-err" role="alert">{error}</p>}
 
-                  <button type="submit" className="btn btn-rust login-btn-full" disabled={busy}>{busy ? "Creating account…" : "Create Account"}</button>
-                </form>
+              <button type="submit" className="btn btn-rust login-btn-full" disabled={busy}>{busy ? "Creating account…" : "Create Account"}</button>
+            </form>
 
             <p className="login-switch">Already have an account? <Link href="/login">Login</Link></p>
             </>)}

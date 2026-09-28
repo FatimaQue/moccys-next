@@ -7,9 +7,9 @@ type Report = {
   summary: { orders: number; revenue: number; average: number; deliveredRevenue: number; deliveryFees: number; itemsSold: number; rejected: number };
   byStatus: Record<"pending" | "preparing" | "ready" | "out" | "delivered" | "rejected", number>;
   byType: Record<"delivery" | "pickup", number>;
-  byPay: Record<"cod" | "easypaisa" | "jazzcash" | "bank", number>;
-  payTotals: { cod: number; easypaisa: number; jazzcash: number; bank: number };
-  payments: { orderNo: string; time: string; customer: string; mobile: string; method: "cod" | "easypaisa" | "jazzcash" | "bank"; account: string | null; amount: number; status: string }[];
+  byPay: Record<"cod" | "easypaisa" | "safepay" | "bank", number>;
+  payTotals: { cod: number; easypaisa: number; safepay: number; bank: number };
+  payments: { orderNo: string; time: string; customer: string; mobile: string; method: keyof typeof METHOD; account: string | null; amount: number; status: string }[];
   items: { name: string; qty: number; revenue: number; addon: boolean }[];
   days: { date: string; revenue: number; orders: number }[];
 };
@@ -19,7 +19,7 @@ const shift = (d: string, by: number) => new Date(new Date(d + "T00:00:00Z").get
 const nice = (d: string) => new Date(d + "T00:00:00Z").toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" });
 
 const timeOf = (iso: string) => new Date(iso).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Karachi" });
-const METHOD = { cod: "Cash on delivery", easypaisa: "EasyPaisa", jazzcash: "JazzCash", bank: "Bank transfer" };
+const METHOD = { cod: "Cash on delivery", easypaisa: "EasyPaisa", safepay: "Online (Safepay)", jazzcash: "JazzCash", bank: "Bank transfer" };
 const PAY_PILL: Record<string, string> = { delivered: "green", rejected: "rust" };
 
 const STATUS_LABEL = { pending: "Pending", preparing: "Preparing", ready: "Ready", out: "Out for delivery", delivered: "Delivered", rejected: "Rejected" };
@@ -128,7 +128,7 @@ export default function AdminReports() {
                 <h4>Payment</h4>
                 <div><span>Cash on delivery</span><b>{r.byPay.cod}</b></div>
                 <div><span>EasyPaisa</span><b>{r.byPay.easypaisa}</b></div>
-                <div><span>JazzCash</span><b>{r.byPay.jazzcash}</b></div>
+                <div><span>Online (Safepay)</span><b>{r.byPay.safepay}</b></div>
                 <div><span>Bank transfer</span><b>{r.byPay.bank}</b></div>
               </div>
             </div>
@@ -139,9 +139,9 @@ export default function AdminReports() {
             <div className="rep-paytotals">
               <div><span>Cash on delivery</span><b>{money(r.payTotals.cod)}</b></div>
               <div><span>EasyPaisa</span><b>{money(r.payTotals.easypaisa)}</b></div>
-              <div><span>JazzCash</span><b>{money(r.payTotals.jazzcash)}</b></div>
+              <div><span>Online (Safepay)</span><b>{money(r.payTotals.safepay)}</b></div>
               <div><span>Bank transfer</span><b>{money(r.payTotals.bank)}</b></div>
-              <div><span>Total</span><b>{money(r.payTotals.cod + r.payTotals.easypaisa + r.payTotals.jazzcash + r.payTotals.bank)}</b></div>
+              <div><span>Total</span><b>{money(r.payTotals.cod + r.payTotals.easypaisa + r.payTotals.safepay + r.payTotals.bank)}</b></div>
             </div>
             <div className="rep-scroll">
               <table>

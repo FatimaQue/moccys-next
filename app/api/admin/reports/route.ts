@@ -28,6 +28,8 @@ export async function GET(req: Request) {
   const { data, error } = await supabaseAdmin()
     .from("orders")
     .select("order_no, customer_name, mobile, easypaisa_number, status, order_type, pay_method, total, delivery_fee, created_at, order_items(name, price, qty, is_addon)")
+    // same rule as the admin board: an online checkout nobody paid for isn't an order
+    .or("pay_method.not.in.(safepay,jazzcash),payment_status.eq.paid")
     .gte("created_at", new Date(dayStart - 6 * DAY).toISOString())
     .lt("created_at", new Date(dayStart + DAY).toISOString())
     .limit(5000)
@@ -90,9 +92,9 @@ export async function GET(req: Request) {
     },
     byStatus: count(["pending", "preparing", "ready", "out", "delivered", "rejected"], (o) => o.status),
     byType: count(["delivery", "pickup"], (o) => o.order_type),
-    payTotals: { cod: payTotal("cod"), easypaisa: payTotal("easypaisa"), jazzcash: payTotal("jazzcash"), bank: payTotal("bank") },
+    payTotals: { cod: payTotal("cod"), easypaisa: payTotal("easypaisa"), safepay: payTotal("safepay"), bank: payTotal("bank") },
     payments,
-    byPay: count(["cod", "easypaisa", "jazzcash", "bank"], (o) => o.pay_method),
+    byPay: count(["cod", "easypaisa", "safepay", "bank"], (o) => o.pay_method),
     items: [...sold.values()].sort((a, b) => b.qty - a.qty || b.revenue - a.revenue),
     days,
   });
