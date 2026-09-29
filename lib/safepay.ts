@@ -54,7 +54,7 @@ export async function startCheckout(opts: { orderNo: string; amountPkr: number }
   return { tracker, url: `${cfg.checkout}?${params}` };
 }
 
-type Tracker = { state?: string; amount?: number; currency?: string; client?: string; transaction?: { token?: string } | null };
+type Tracker = { state?: string; amount?: number; currency?: string; client?: string; transaction?: { token?: string; fees?: number } | null };
 
 // Asks Safepay itself for the tracker's current state. The browser redirect only carries
 // ?order_id=&tracker= (no signature), so it's never trusted on its own — this is the proof.
@@ -98,7 +98,7 @@ export async function confirmPayment(tracker: string): Promise<{ orderNo: string
 
   const { data: updated } = await db
     .from("orders")
-    .update({ payment_status: "paid", paid_at: new Date().toISOString() })
+    .update({ payment_status: "paid", paid_at: new Date().toISOString(), safepay_fee: t.transaction?.fees ?? null })
     .eq("id", order.id)
     .neq("payment_status", "paid")
     .select("id")

@@ -10,10 +10,14 @@ const DAY = 86_400_000;
 type Row = {
   order_no: string; customer_name: string; mobile: string;
   status: string; order_type: string; pay_method: string; total: number; delivery_fee: number; created_at: string;
+  out_at: string | null; delivered_at: string | null; safepay_fee: number | null;
   order_items: { name: string; price: number; qty: number; is_addon: boolean }[];
 };
 
 const dayKey = (iso: string) => new Date(new Date(iso).getTime() + PKT_HOURS * 3_600_000).toISOString().slice(0, 10);
+const pktHour = (iso: string) => new Date(new Date(iso).getTime() + PKT_HOURS * 3_600_000).getUTCHours();
+const minsBetween = (a: string, b: string) => (new Date(b).getTime() - new Date(a).getTime()) / 60_000;
+const avg = (nums: number[]) => (nums.length ? Math.round(nums.reduce((s, n) => s + n, 0) / nums.length) : null);
 
 export async function GET(req: Request) {
   if (!(await getAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -24,10 +28,10 @@ export async function GET(req: Request) {
   const dayStart = new Date(`${date}T00:00:00+05:00`).getTime();
   if (Number.isNaN(dayStart)) return NextResponse.json({ error: "Invalid date" }, { status: 400 });
 
-  // one query covers the chosen day and the six before it (for the trend bars)
+  // one query covers the chosen day and the six before it (for the trend bars and the "vs yesterday" deltas)
   const { data, error } = await supabaseAdmin()
     .from("orders")
-    .select("order_no, customer_name, mobile, status, order_type, pay_method, total, delivery_fee, created_at, order_items(name, price, qty, is_addon)")
+    .select("order_no, customer_name, mobile, status, order_type, pay_method, total, delivery_fee, created_at, out_at, delivered_at, safepay_fee, order_items(name, price, qty, is_addon)")
     // same rule as the admin board: an online checkout nobody paid for isn't an order
     .or("pay_method.not.in.(safepay,jazzcash),payment_status.eq.paid")
     .gte("created_at", new Date(dayStart - 6 * DAY).toISOString())
@@ -53,6 +57,13 @@ export async function GET(req: Request) {
   const dayOrders = data.filter((o) => dayKey(o.created_at) === date);
   const sales = dayOrders.filter((o) => o.status !== "rejected");
   const revenue = sales.reduce((s, o) => s + o.total, 0);
+  const safepayFees = sales.reduce((s, o) => s + (o.safepay_fee ?? 0), 0);
+
+  // the day right before the one being viewed, so the stat cards can show a "vs yesterday" delta —
+  // already covered by the 6-day lookback above, so this needs no extra query
+  const prevDate = new Date(dayStart - DAY + PKT_HOURS * 3_600_000).toISOString().slice(0, 10);
+  const prevSales = data.filter((o) => dayKey(o.created_at) === prevDate && o.status !== "rejected");
+  const prevRevenue = prevSales.reduce((s, o) => s + o.total, 0);
 
   const count = <K extends string>(keys: K[], pick: (o: Row) => string) =>
     Object.fromEntries(keys.map((k) => [k, dayOrders.filter((o) => pick(o) === k).length])) as Record<K, number>;
@@ -61,10 +72,24 @@ export async function GET(req: Request) {
   const payments = dayOrders
     .map((o) => ({
       orderNo: o.order_no, time: o.created_at, customer: o.customer_name, mobile: o.mobile,
-      method: o.pay_method, amount: o.total, status: o.status,
+      method: o.pay_method, orderType: o.order_type, amount: o.total, status: o.status,
     }))
     .sort((a, b) => b.time.localeCompare(a.time));
   const payTotal = (m: string) => sales.filter((o) => o.pay_method === m).reduce((s, o) => s + o.total, 0);
+
+  // how long delivery orders actually take — riders only ever get an out_at once dispatched
+  // (see app/api/admin/orders/[id]/route.ts), so pickup orders (which skip that step) are excluded
+  const timed = sales.filter((o) => o.order_type === "delivery" && o.status === "delivered" && o.out_at && o.delivered_at);
+  const prepMins = timed.map((o) => minsBetween(o.created_at, o.out_at as string));
+  const deliveryMins = timed.map((o) => minsBetween(o.out_at as string, o.delivered_at as string));
+
+  // orders placed per hour of the day, in restaurant (PKT) time, for the busy-hours chart
+  const hours = Array.from({ length: 24 }, (_, hour) => ({ hour, orders: 0, revenue: 0 }));
+  for (const o of sales) {
+    const h = hours[pktHour(o.created_at)];
+    h.orders += 1;
+    h.revenue += o.total;
+  }
 
   const sold = new Map<string, { name: string; qty: number; revenue: number; addon: boolean }>();
   for (const o of sales) {
@@ -83,11 +108,21 @@ export async function GET(req: Request) {
     summary: {
       orders: sales.length,
       revenue,
+      netRevenue: revenue - safepayFees,
+      safepayFees,
       average: sales.length ? Math.round(revenue / sales.length) : 0,
       deliveredRevenue: sales.filter((o) => o.status === "delivered").reduce((s, o) => s + o.total, 0),
       deliveryFees: sales.reduce((s, o) => s + o.delivery_fee, 0),
       itemsSold: [...sold.values()].filter((i) => !i.addon).reduce((s, i) => s + i.qty, 0),
       rejected: dayOrders.length - sales.length,
+      avgPrepMins: avg(prepMins),
+      avgDeliveryMins: avg(deliveryMins),
+      timedOrders: timed.length,
+    },
+    previous: {
+      revenue: prevRevenue,
+      orders: prevSales.length,
+      average: prevSales.length ? Math.round(prevRevenue / prevSales.length) : 0,
     },
     byStatus: count(["pending", "preparing", "ready", "out", "delivered", "rejected"], (o) => o.status),
     byType: count(["delivery", "pickup"], (o) => o.order_type),
@@ -96,5 +131,6 @@ export async function GET(req: Request) {
     byPay: count(["cod", "easypaisa", "safepay", "bank"], (o) => o.pay_method),
     items: [...sold.values()].sort((a, b) => b.qty - a.qty || b.revenue - a.revenue),
     days,
+    hours,
   });
 }
