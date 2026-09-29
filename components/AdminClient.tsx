@@ -74,6 +74,7 @@ export default function AdminClient() {
   const [page, setPage] = useState<"dashboard" | "orders" | "reports" | "inventory" | "drivers">("dashboard");
   const router = useRouter();
   const [all, setAll] = useState<Order[]>([]);
+  const [orderSearch, setOrderSearch] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [pick, setPick] = useState<Record<number, string>>({}); // driver chosen per order before "Send Out"
@@ -212,6 +213,12 @@ export default function AdminClient() {
   }, [all]);
 
   const isNew = (o: Order) => o.status === "pending" && now - new Date(o.createdAt).getTime() < NEW_MINUTES * 60_000;
+
+  const filteredOrders = useMemo(() => {
+    const q = orderSearch.trim().toLowerCase();
+    if (!q) return all;
+    return all.filter((o) => o.id.toLowerCase().includes(q) || o.customer.toLowerCase().includes(q));
+  }, [all, orderSearch]);
 
   return (
     <>
@@ -368,13 +375,20 @@ export default function AdminClient() {
               <section className="page">
                 <div className="content-head"><div className="head-left"><h2>Orders</h2></div></div>
                 <div className="table-card">
-                  <div className="table-head"><h3>All Orders</h3></div>
+                  <div className="table-head rep-payhead">
+                    <h3>All Orders</h3>
+                    <div className="rep-filters">
+                      <input type="text" placeholder="Search by customer or order ID…" value={orderSearch} onChange={(e) => setOrderSearch(e.target.value)} aria-label="Search orders" />
+                    </div>
+                  </div>
                   <table>
-                    <thead><tr><th>Order ID</th><th>Customer</th><th>Address</th><th>Amount</th><th>Driver</th><th>Live Status</th></tr></thead>
+                    <thead><tr><th>Order ID</th><th>Customer</th><th>Address</th><th>Amount</th><th>Rider</th><th>Live Status</th></tr></thead>
                     <tbody>
                       {all.length === 0 ? (
                         <tr><td colSpan={6} className="col-empty">{!loaded ? "Loading orders…" : loadError ?? "No orders yet"}</td></tr>
-                      ) : all.map((o) => (
+                      ) : filteredOrders.length === 0 ? (
+                        <tr><td colSpan={6} className="col-empty">No orders match your search</td></tr>
+                      ) : filteredOrders.map((o) => (
                         <tr key={o.dbId}>
                           <td>{o.id}</td><td>{o.customer}</td><td>{o.address}</td><td className="amount">{money(o.total)}</td>
                           <td>{o.driver ?? "—"}</td>
