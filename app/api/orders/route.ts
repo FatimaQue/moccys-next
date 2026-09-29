@@ -30,7 +30,7 @@ export async function POST(req: Request) {
   const city = clean(b.city, 40);
   const address = clean(b.address, 250);
   const notes = clean(b.notes, 500);
-  const payMethod = b.payMethod === "easypaisa" || b.payMethod === "safepay" || b.payMethod === "bank" ? b.payMethod : "cod";
+  const payMethod = b.payMethod === "safepay" || b.payMethod === "bank" ? b.payMethod : "cod";
   const wallet = clean(b.wallet, 30);
 
   if (!name || !/^\S+@\S+\.\S+$/.test(email)) return bad("Please enter your name and a valid email.");
@@ -38,7 +38,6 @@ export async function POST(req: Request) {
   if (b.orderType !== "delivery" && b.orderType !== "pickup") return bad("Invalid order type.");
   if (delivery && (!city || !address)) return bad("Please enter your city and address.");
   if (payMethod === "bank" && wallet.length < 4) return bad("Please enter your account number or transfer reference.");
-  if (payMethod === "easypaisa" && !/^03\d{9}$/.test(wallet)) return bad("Please enter a valid EasyPaisa number.");
   // safepay needs no wallet number here — the customer picks and enters it on Safepay's hosted page
 
   const lines = Array.isArray(b.items) ? b.items.slice(0, 60) : [];
@@ -71,7 +70,7 @@ export async function POST(req: Request) {
       .insert({
         order_no, status: "pending", order_type: b.orderType, customer_name: name, email, mobile,
         city: delivery ? city : null, address: delivery ? address : null, notes: notes || null,
-        pay_method: payMethod, easypaisa_number: payMethod === "easypaisa" || payMethod === "bank" ? wallet : null, // one column holds the wallet number for both
+        pay_method: payMethod, easypaisa_number: payMethod === "bank" ? wallet : null, // column name is historical; holds the bank reference now
         subtotal, delivery_fee, total: subtotal + delivery_fee,
       })
       .select("id")

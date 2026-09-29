@@ -41,6 +41,10 @@ export default function HomeClient() {
   });
   const [showIdx, setShowIdx] = useState(0);
   const [selected, setSelected] = useState<MenuItem | null>(null);
+  const [newsletterEmail, setNewsletterEmail] = useState("");
+  const [newsletterBusy, setNewsletterBusy] = useState(false);
+  const [newsletterDone, setNewsletterDone] = useState(false);
+  const [newsletterError, setNewsletterError] = useState<string | null>(null);
 
   const openCart = useCallback(() => setCartOpen(true), []);
   const closeCart = useCallback(() => setCartOpen(false), []);
@@ -52,6 +56,24 @@ export default function HomeClient() {
     setAddress(a);
     try { localStorage.setItem(DELIVERY_ADDRESS_KEY, a); } catch { /* storage blocked: it just won't be remembered */ }
   }, []);
+
+  const subscribe = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newsletterBusy) return;
+    setNewsletterBusy(true); setNewsletterError(null);
+    try {
+      const res = await fetch("/api/newsletter", {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ email: newsletterEmail }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) { setNewsletterError(data.error || "Something went wrong. Please try again."); return; }
+      setNewsletterDone(true);
+    } catch {
+      setNewsletterError("Network problem. Please try again.");
+    } finally {
+      setNewsletterBusy(false);
+    }
+  };
 
   /* ---------- GSAP: scroll reveals, tilt, magnets, pinned showcase ---------- */
   useEffect(() => {
@@ -286,7 +308,7 @@ export default function HomeClient() {
         onAddressChange={setAddress}
       />
 
-      <Hero />
+      <Hero onFindBranch={() => setPickupOpen(true)} />
       <Deals onPick={setSelected} />
       <Categories />
       <Showcase active={showIdx} onPick={setSelected} />
@@ -301,10 +323,18 @@ export default function HomeClient() {
             </div>
             <h2 className="display" data-reveal><span className="ln">Special offers</span><span className="ln amber">&amp; news</span></h2>
             <p className="promo-sub" data-reveal>Subscribe now for news, promotions and more delivered right to your inbox.</p>
-            <form className="promo-form" data-reveal onSubmit={(e) => e.preventDefault()}>
-              <input type="email" className="promo-input" placeholder="Enter email address" aria-label="Enter email address" required />
-              <button type="submit" className="btn btn-rust" data-magnet>Subscribe →</button>
-            </form>
+            {newsletterDone ? (
+              <p className="promo-done" data-reveal>Thanks — you&apos;re on the list!</p>
+            ) : (
+              <form className="promo-form" data-reveal onSubmit={subscribe}>
+                <input
+                  type="email" className="promo-input" placeholder="Enter email address" aria-label="Enter email address" required
+                  value={newsletterEmail} onChange={(e) => { setNewsletterEmail(e.target.value); setNewsletterError(null); }}
+                />
+                <button type="submit" className="btn btn-rust" data-magnet disabled={newsletterBusy}>{newsletterBusy ? "Subscribing…" : "Subscribe →"}</button>
+              </form>
+            )}
+            {newsletterError && <p className="promo-err" role="alert" data-reveal>{newsletterError}</p>}
             <p className="promo-fine" data-reveal>No spam, ever. Unsubscribe anytime.</p>
           </div>
           <div className="promo-pic" data-reveal>

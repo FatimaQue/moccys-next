@@ -6,14 +6,15 @@ import { Fragment, useEffect, useRef, useState } from "react";
 import { TearBottom } from "./Tears";
 
 type Seg = { t: string; em?: boolean };
-type Slide = { img: string; alt: string; chip: string; lines: Seg[][]; sub: string; cta: { href: string; label: string } };
+// a normal CTA scrolls to `href`; "pickup" instead opens the same branch-finder modal as the Pick-up nav button
+type Slide = { img: string; alt: string; chip: string; lines: Seg[][]; sub: string; cta: { href: string; label: string; action?: "pickup" } };
 
 const SLIDES: Slide[] = [
   {
     img: "/images/IMG_2996.JPG", alt: "Wood-fired pizza fresh from the oven", chip: "Now Open",
     lines: [[{ t: "mccoy's is now" }], [{ t: "open in islamabad", em: true }]],
     sub: "Fresh out the oven on I-8 Markaz. Come say hello — we'd love to have you in.",
-    cta: { href: "#footer", label: "Find the branch →" },
+    cta: { href: "#footer", label: "Find the branch →", action: "pickup" },
   },
   {
     img: "/images/IMG_2998.JPG", alt: "Stacked double cheeseburger", chip: "#1 Best Seller",
@@ -60,7 +61,7 @@ function Line({ segs }: { segs: Seg[] }) {
 
 const prefersReducedMotion = () => window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
-export default function Hero() {
+export default function Hero({ onFindBranch }: { onFindBranch?: () => void }) {
   const [cur, setCur] = useState(0);
   const [paused, setPaused] = useState(false);
   const [restartKey, setRestartKey] = useState(0);
@@ -110,7 +111,11 @@ export default function Hero() {
             <span className="chip">{s.chip}</span>
             <h1 className="display">{s.lines.map((l, n) => <Line key={n} segs={l} />)}</h1>
             <p className="slide-sub">{s.sub}</p>
-            <a href={s.cta.href} className="btn btn-rust" data-magnet>{s.cta.label}</a>
+            {s.cta.action === "pickup" ? (
+              <button type="button" className="btn btn-rust" data-magnet onClick={onFindBranch}>{s.cta.label}</button>
+            ) : (
+              <a href={s.cta.href} className="btn btn-rust" data-magnet>{s.cta.label}</a>
+            )}
           </div></div>
         </div>
       ))}

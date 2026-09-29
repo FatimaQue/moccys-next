@@ -9,6 +9,8 @@ export const MAX_ATTEMPTS = 5;
 export const LOCK_MINUTES = 15;
 export const MIN_PASSWORD = 4;
 export const MAX_PASSWORD = 40;
+export const MIN_USERNAME = 3;
+export const MAX_USERNAME = 20;
 
 // 03001234567, +92 300 1234567 and 923001234567 are all the same person
 export function normalizePhone(raw: unknown): string | null {
@@ -17,6 +19,15 @@ export function normalizePhone(raw: unknown): string | null {
   else if (d.startsWith("92") && d.length === 12) d = d.slice(2);
   if (d.length === 10 && d.startsWith("3")) d = "0" + d;
   return /^03\d{9}$/.test(d) ? d : null;
+}
+
+// admin/driver login identifier, chosen by the admin when adding staff. Lowercase letters, digits,
+// dot/underscore/hyphen, 3-20 chars, must start and end with a letter or digit (so a stray leading/
+// trailing "." or "_" can't create a near-duplicate of another username). Always normalized to
+// lowercase so storage, uniqueness, and lookups never have to special-case case sensitivity.
+export function normalizeUsername(raw: unknown): string | null {
+  const s = String(raw ?? "").trim().toLowerCase();
+  return /^[a-z0-9][a-z0-9._-]{1,18}[a-z0-9]$/.test(s) ? s : null;
 }
 
 export const normalizeName = (s: unknown) => String(s ?? "").trim().replace(/\s+/g, " ").toLowerCase();
@@ -44,14 +55,27 @@ export const staffPassword = (role: StaffRole, phone: string) =>
   createHmac("sha256", process.env.SUPABASE_SERVICE_ROLE_KEY!).update(`${role}-login:${phone}`).digest("hex");
 
 export type StaffRow = {
-  id: string; role: StaffRole; name: string; phone: string | null; active: boolean | null;
+  id: string; role: StaffRole; name: string; phone: string | null; username: string | null; active: boolean | null;
   password_hash: string | null; failed_attempts: number; locked_until: string | null;
 };
 
+// used to sign in, once a username has been chosen
+export async function findStaffByUsername(username: string) {
+  const { data } = await supabaseAdmin()
+    .from("profiles")
+    .select("id, role, name, phone, username, active, password_hash, failed_attempts, locked_until")
+    .eq("username", username)
+    .in("role", ["admin", "driver"])
+    .maybeSingle<StaffRow>();
+  return data;
+}
+
+// used only for first-time claim — the admin registers someone by name + phone, before that person has
+// picked a username, so phone is the only way to find their row at that point
 export async function findStaffByPhone(phone: string) {
   const { data } = await supabaseAdmin()
     .from("profiles")
-    .select("id, role, name, phone, active, password_hash, failed_attempts, locked_until")
+    .select("id, role, name, phone, username, active, password_hash, failed_attempts, locked_until")
     .eq("phone", phone)
     .in("role", ["admin", "driver"])
     .maybeSingle<StaffRow>();

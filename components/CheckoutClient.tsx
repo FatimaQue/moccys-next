@@ -43,13 +43,11 @@ function readSavedAddress() {
 export default function CheckoutClient({ onlinePay }: { onlinePay: boolean }) {
   const { cart, setQty, remove, clear } = useCart();
   const [orderType, setOrderType] = useState<"delivery" | "pickup">("delivery");
-  const [pay, setPay] = useState<"cod" | "easypaisa" | "safepay" | "bank">("cod");
+  const [pay, setPay] = useState<"cod" | "safepay" | "bank">("cod");
   const [mobile, setMobile] = useState("");
-  const [wallet, setWallet] = useState(""); // the EasyPaisa number, or the bank account/reference
+  const [wallet, setWallet] = useState(""); // the bank account/reference, for a bank transfer
   const bank = pay === "bank";
-  // the wallet number is the customer's own account; a checkbox that copies their contact number makes no sense for a bank transfer
-  const choose = (m: typeof pay) => { setPay(m); if (m === "bank") { setSame(false); setWallet(""); } };
-  const [same, setSame] = useState(false);
+  const choose = (m: typeof pay) => setPay(m);
   const [safepayReturn] = useState(readSafepayReturn);
   const [savedAddress] = useState(readSavedAddress);
   const [orderId, setOrderId] = useState<string | null>(() => (safepayReturn?.result === "success" ? safepayReturn.orderNo : null));
@@ -161,7 +159,7 @@ export default function CheckoutClient({ onlinePay }: { onlinePay: boolean }) {
               {!empty && (
                 <div>
                   <form className="panel" id="orderForm" onSubmit={submit}>
-                    <h2>Shipping Address</h2>
+                    <h2>Delivery Details</h2>
                     <div className="form-grid">
                       <div className="field full">
                         <label htmlFor="fEmail">Email<i>*</i></label>
@@ -176,7 +174,7 @@ export default function CheckoutClient({ onlinePay }: { onlinePay: boolean }) {
                         <input
                           type="tel" id="fMobile" placeholder="03XXXXXXXXX" pattern="03[0-9]{9}" required
                           value={mobile}
-                          onChange={(e) => { setMobile(e.target.value); if (same) setWallet(e.target.value); }}
+                          onChange={(e) => setMobile(e.target.value)}
                         />
                       </div>
                       <div className="field full">
@@ -218,10 +216,6 @@ export default function CheckoutClient({ onlinePay }: { onlinePay: boolean }) {
                         <input type="radio" name="payMethod" value="cod" checked={pay === "cod"} onChange={() => choose("cod")} />
                         <span>Cash on Delivery</span>
                       </label>
-                      <label className={"pay-opt" + (pay === "easypaisa" ? " on" : "")}>
-                        <input type="radio" name="payMethod" value="easypaisa" checked={pay === "easypaisa"} onChange={() => choose("easypaisa")} />
-                        <span>Pay with Easypaisa</span>
-                      </label>
                       {onlinePay && (
                         <label className={"pay-opt" + (pay === "safepay" ? " on" : "")}>
                           <input type="radio" name="payMethod" value="safepay" checked={pay === "safepay"} onChange={() => choose("safepay")} />
@@ -236,32 +230,23 @@ export default function CheckoutClient({ onlinePay }: { onlinePay: boolean }) {
                       )}
                     </div>
 
-                    <div className={"pay-easypaisa" + (pay === "cod" || pay === "safepay" ? " hidden" : "")}>
-                      {bank && (
-                        <div className="bank-box">
-                          <b>Transfer the total to:</b>
-                          {BANK.name && <div><span>Bank</span>{BANK.name}</div>}
-                          {BANK.title && <div><span>Account title</span>{BANK.title}</div>}
-                          <div><span>Account number</span>{BANK.account}</div>
-                          {BANK.iban && <div><span>IBAN</span>{BANK.iban}</div>}
-                          <small>Then enter your account number or the transfer reference below so we can match your payment.</small>
-                        </div>
-                      )}
+                    <div className={"pay-easypaisa" + (bank ? "" : " hidden")}>
+                      <div className="bank-box">
+                        <b>Transfer the total to:</b>
+                        {BANK.name && <div><span>Bank</span>{BANK.name}</div>}
+                        {BANK.title && <div><span>Account title</span>{BANK.title}</div>}
+                        <div><span>Account number</span>{BANK.account}</div>
+                        {BANK.iban && <div><span>IBAN</span>{BANK.iban}</div>}
+                        <small>Then enter your account number or the transfer reference below so we can match your payment.</small>
+                      </div>
                       <div className="field">
-                        <label htmlFor="fEasypaisa">{bank ? "Your Account Number / Transfer Reference" : "EasyPaisa Number"}</label>
+                        <label htmlFor="fBankRef">Your Account Number / Transfer Reference</label>
                         <input
-                          type={bank ? "text" : "tel"} id="fEasypaisa" placeholder={bank ? "Account number or reference" : "03XXXXXXXXX"}
-                          required={pay === "easypaisa" || bank} disabled={same && !bank} minLength={bank ? 4 : undefined} maxLength={bank ? 30 : undefined}
+                          type="text" id="fBankRef" placeholder="Account number or reference"
+                          required={bank} minLength={4} maxLength={30}
                           value={wallet} onChange={(e) => setWallet(e.target.value)}
                         />
                       </div>
-                      {!bank && <label className="checkbox-row">
-                        <input
-                          type="checkbox" id="fSameNumber" checked={same}
-                          onChange={(e) => { setSame(e.target.checked); if (e.target.checked) setWallet(mobile); }}
-                        />
-                        Same as Contact Number
-                      </label>}
                     </div>
                     {pay === "safepay" && (
                       <p className="online-note">You&apos;ll be taken to Safepay&apos;s secure page to pay with JazzCash, Easypaisa, your bank account or a card.</p>

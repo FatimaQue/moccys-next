@@ -11,18 +11,20 @@ export async function GET() {
 
   const { data, error } = await supabaseAdmin()
     .from("profiles")
-    .select("id, name, phone, active, password_hash")
+    .select("id, name, phone, username, active, password_hash")
     .eq("role", "driver")
     .order("name");
   if (error) {
     console.error("riders fetch failed", error);
     return NextResponse.json({ error: "Could not load riders" }, { status: 500 });
   }
-  const drivers = data.map((d) => ({ id: d.id, name: d.name, phone: d.phone, active: d.active !== false, passwordSet: !!d.password_hash }));
+  const drivers = data.map((d) => ({
+    id: d.id, name: d.name, phone: d.phone, username: d.username, active: d.active !== false, passwordSet: !!d.password_hash,
+  }));
   return NextResponse.json({ drivers });
 }
 
-// register a rider; they choose their own password the first time they sign in
+// register a rider; they pick their own username and password the first time they sign in
 export async function POST(req: Request) {
   if (!(await getAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 

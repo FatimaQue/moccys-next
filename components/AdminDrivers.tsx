@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 
-export type DriverInfo = { id: string; name: string; phone: string | null; active: boolean; passwordSet: boolean };
+export type DriverInfo = { id: string; name: string; phone: string | null; username: string | null; active: boolean; passwordSet: boolean };
 
 // add riders, reset a forgotten password, switch a rider off/on
 export default function AdminDrivers({ drivers, onChange }: { drivers: DriverInfo[]; onChange: () => void }) {
@@ -20,7 +20,7 @@ export default function AdminDrivers({ drivers, onChange }: { drivers: DriverInf
     }).catch(() => null);
     setBusy(false);
     if (res?.ok) {
-      setMsg({ text: `${name} added. Ask them to open the sign-in page and enter their phone number — they'll be asked to set a password.` });
+      setMsg({ text: `${name} added. Ask them to open the sign-in page and enter their phone number — they'll be asked to choose a username and set a password.` });
       setName(""); setPhone(""); onChange();
     } else {
       setMsg({ text: res ? ((await res.json().catch(() => ({}))) as { error?: string }).error ?? "Could not add the rider." : "Couldn't reach the server.", bad: true });
@@ -50,17 +50,18 @@ export default function AdminDrivers({ drivers, onChange }: { drivers: DriverInf
             <label htmlFor="nPhone">Phone number</label>
             <input id="nPhone" type="tel" placeholder="03001234567" required value={phone} onChange={(e) => setPhone(e.target.value)} />
           </div>
-          <button className="btn-ready" type="submit" disabled={busy}>{busy ? "Adding…" : "Add rider"}</button>
+          <button className="drv-add" type="submit" disabled={busy}>{busy ? "Adding…" : "Add rider"}</button>
           {msg && <p className={msg.bad ? "signin-err" : ""} style={{ margin: 0, flexBasis: "100%" }}>{msg.text}</p>}
         </form>
         <table>
-          <thead><tr><th>Name</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th>Name</th><th>Username</th><th>Phone</th><th>Status</th><th>Actions</th></tr></thead>
           <tbody>
             {drivers.length === 0 ? (
-              <tr><td colSpan={4} className="col-empty">No riders yet</td></tr>
+              <tr><td colSpan={5} className="col-empty">No riders yet</td></tr>
             ) : drivers.map((d) => (
               <tr key={d.id}>
                 <td>{d.name}</td>
+                <td>{d.username ?? "—"}</td>
                 <td>{d.phone ?? "—"}</td>
                 <td>
                   <span className={"pill pill-" + (!d.active ? "rust" : d.passwordSet ? "green" : "amber")}>

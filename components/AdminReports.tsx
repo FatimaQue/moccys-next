@@ -155,7 +155,7 @@ export default function AdminReports() {
                       <td>{p.orderNo}</td>
                       <td>{p.customer}<br /><small className="rep-sub">{p.mobile}</small></td>
                       <td>{METHOD[p.method]}</td>
-                      <td>{p.account ?? <small className="rep-sub">Paid to rider</small>}</td>
+                      <td>{p.account ?? <small className="rep-sub">{p.method === "cod" ? "Paid to rider" : "—"}</small>}</td>
                       <td className="amount">{money(p.amount)}</td>
                       <td><span className={"pill pill-" + (PAY_PILL[p.status] ?? "amber")}>{STATUS_LABEL[p.status as keyof typeof STATUS_LABEL]}</span></td>
                     </tr>
