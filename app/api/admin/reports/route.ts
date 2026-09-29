@@ -8,7 +8,7 @@ const PKT_HOURS = 5; // Pakistan time, no daylight saving: "today" means the res
 const DAY = 86_400_000;
 
 type Row = {
-  order_no: string; customer_name: string; mobile: string; easypaisa_number: string | null;
+  order_no: string; customer_name: string; mobile: string;
   status: string; order_type: string; pay_method: string; total: number; delivery_fee: number; created_at: string;
   order_items: { name: string; price: number; qty: number; is_addon: boolean }[];
 };
@@ -27,7 +27,7 @@ export async function GET(req: Request) {
   // one query covers the chosen day and the six before it (for the trend bars)
   const { data, error } = await supabaseAdmin()
     .from("orders")
-    .select("order_no, customer_name, mobile, easypaisa_number, status, order_type, pay_method, total, delivery_fee, created_at, order_items(name, price, qty, is_addon)")
+    .select("order_no, customer_name, mobile, status, order_type, pay_method, total, delivery_fee, created_at, order_items(name, price, qty, is_addon)")
     // same rule as the admin board: an online checkout nobody paid for isn't an order
     .or("pay_method.not.in.(safepay,jazzcash),payment_status.eq.paid")
     .gte("created_at", new Date(dayStart - 6 * DAY).toISOString())
@@ -61,8 +61,7 @@ export async function GET(req: Request) {
   const payments = dayOrders
     .map((o) => ({
       orderNo: o.order_no, time: o.created_at, customer: o.customer_name, mobile: o.mobile,
-      method: o.pay_method, account: o.pay_method !== "cod" ? o.easypaisa_number : null,
-      amount: o.total, status: o.status,
+      method: o.pay_method, amount: o.total, status: o.status,
     }))
     .sort((a, b) => b.time.localeCompare(a.time));
   const payTotal = (m: string) => sales.filter((o) => o.pay_method === m).reduce((s, o) => s + o.total, 0);

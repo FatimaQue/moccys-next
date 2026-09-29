@@ -9,7 +9,7 @@ type Report = {
   byType: Record<"delivery" | "pickup", number>;
   byPay: Record<"cod" | "easypaisa" | "safepay" | "bank", number>;
   payTotals: { cod: number; easypaisa: number; safepay: number; bank: number };
-  payments: { orderNo: string; time: string; customer: string; mobile: string; method: keyof typeof METHOD; account: string | null; amount: number; status: string }[];
+  payments: { orderNo: string; time: string; customer: string; mobile: string; method: keyof typeof METHOD; amount: number; status: string }[];
   items: { name: string; qty: number; revenue: number; addon: boolean }[];
   days: { date: string; revenue: number; orders: number }[];
 };
@@ -145,17 +145,16 @@ export default function AdminReports() {
             </div>
             <div className="rep-scroll">
               <table>
-                <thead><tr><th>Time</th><th>Order</th><th>Customer</th><th>Method</th><th>Account</th><th>Amount</th><th>Paid</th><th>Status</th></tr></thead>
+                <thead><tr><th>Time</th><th>Order</th><th>Customer</th><th>Method</th><th>Amount</th><th>Paid</th><th>Status</th></tr></thead>
                 <tbody>
                   {r.payments.length === 0 ? (
-                    <tr><td colSpan={8} className="col-empty">No payments</td></tr>
+                    <tr><td colSpan={7} className="col-empty">No payments</td></tr>
                   ) : r.payments.map((p) => (
                     <tr key={p.orderNo} className={p.status === "rejected" ? "rep-void" : undefined}>
                       <td>{timeOf(p.time)}</td>
                       <td>{p.orderNo}</td>
                       <td>{p.customer}<br /><small className="rep-sub">{p.mobile}</small></td>
                       <td>{METHOD[p.method]}</td>
-                      <td>{p.account ?? <small className="rep-sub">{p.method === "cod" ? "Paid to rider" : "—"}</small>}</td>
                       <td className="amount">{money(p.amount)}</td>
                       <td>
                         {p.status === "rejected" ? (
