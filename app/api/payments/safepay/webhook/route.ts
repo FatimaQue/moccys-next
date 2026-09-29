@@ -11,10 +11,6 @@ type Payload = { data?: { tracker?: string; token?: string; notification?: Notif
 // actually paid, so a forged call can't mark anything paid.
 export async function POST(req: Request) {
   const body = (await req.json().catch(() => null)) as Payload | null;
-  // TEMP: checking whether Safepay's webhook payload already carries payment_method/instrument
-  // details (card/JazzCash/Easypaisa/bank) so the reports "Account" column can show them — remove
-  // this once we've inspected a real payload in the Vercel logs.
-  console.info("safepay webhook payload", JSON.stringify(body));
   const d = body?.data;
   const tracker = [d?.notification?.tracker, d?.notification?.token, d?.tracker, d?.token, body?.tracker]
     .find((t): t is string => typeof t === "string" && t.startsWith("track_"));

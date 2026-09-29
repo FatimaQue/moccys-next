@@ -145,10 +145,10 @@ export default function AdminReports() {
             </div>
             <div className="rep-scroll">
               <table>
-                <thead><tr><th>Time</th><th>Order</th><th>Customer</th><th>Method</th><th>Account</th><th>Amount</th><th>Status</th></tr></thead>
+                <thead><tr><th>Time</th><th>Order</th><th>Customer</th><th>Method</th><th>Account</th><th>Amount</th><th>Paid</th><th>Status</th></tr></thead>
                 <tbody>
                   {r.payments.length === 0 ? (
-                    <tr><td colSpan={7} className="col-empty">No payments</td></tr>
+                    <tr><td colSpan={8} className="col-empty">No payments</td></tr>
                   ) : r.payments.map((p) => (
                     <tr key={p.orderNo} className={p.status === "rejected" ? "rep-void" : undefined}>
                       <td>{timeOf(p.time)}</td>
@@ -157,6 +157,15 @@ export default function AdminReports() {
                       <td>{METHOD[p.method]}</td>
                       <td>{p.account ?? <small className="rep-sub">{p.method === "cod" ? "Paid to rider" : "—"}</small>}</td>
                       <td className="amount">{money(p.amount)}</td>
+                      <td>
+                        {p.status === "rejected" ? (
+                          <span className="pill pill-rust">Voided</span>
+                        ) : p.method === "safepay" || p.method === "jazzcash" || p.status === "delivered" ? (
+                          <span className="pill pill-green">Paid</span>
+                        ) : (
+                          <span className="pill pill-amber">Pending</span>
+                        )}
+                      </td>
                       <td><span className={"pill pill-" + (PAY_PILL[p.status] ?? "amber")}>{STATUS_LABEL[p.status as keyof typeof STATUS_LABEL]}</span></td>
                     </tr>
                   ))}
