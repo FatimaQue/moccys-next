@@ -3,7 +3,8 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { DELIVERY_FEE } from "@/lib/pricing";
+import { CLOSED_MESSAGE } from "@/lib/hours";
+import { DELIVERY_FEE, MIN_DELIVERY_ORDER } from "@/lib/pricing";
 import { money, useCart } from "./CartProvider";
 import { DELIVERY_ADDRESS_KEY } from "./Nav";
 import { LAST_ORDER_KEY } from "./TrackClient";
@@ -39,12 +40,16 @@ function readSavedAddress() {
   try { return localStorage.getItem(DELIVERY_ADDRESS_KEY) ?? ""; } catch { return ""; }
 }
 
+type CheckoutCustomer = { name: string; email: string | null; phone: string | null };
+
 // onlinePay: whether Safepay keys are set on the server (the option hides otherwise)
-export default function CheckoutClient({ onlinePay }: { onlinePay: boolean }) {
+// customer: the signed-in account (null = not logged in, so ordering is locked behind a login)
+// open: whether the kitchen is taking orders right now (the server checks again when the order is sent)
+export default function CheckoutClient({ onlinePay, customer, open }: { onlinePay: boolean; customer: CheckoutCustomer | null; open: boolean }) {
   const { cart, setQty, remove, clear } = useCart();
   const [orderType, setOrderType] = useState<"delivery" | "pickup">("delivery");
   const [pay, setPay] = useState<"cod" | "safepay" | "bank">("cod");
-  const [mobile, setMobile] = useState("");
+  const [mobile, setMobile] = useState(customer?.phone ?? "");
   const [wallet, setWallet] = useState(""); // the bank account/reference, for a bank transfer
   const bank = pay === "bank";
   const choose = (m: typeof pay) => setPay(m);
@@ -69,11 +74,15 @@ export default function CheckoutClient({ onlinePay }: { onlinePay: boolean }) {
   const fee = delivery ? DELIVERY_FEE : 0;
   const total = subtotal + fee;
   const empty = cart.length === 0;
+  const belowMinimum = delivery && subtotal < MIN_DELIVERY_ORDER;
+  // an email account orders under its verified email, a phone-only account under its verified number (the server enforces both)
+  const lockEmail = !!customer?.email;
+  const lockMobile = !!customer && !customer.email && !!customer.phone;
 
   const submit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const form = e.currentTarget;
-    if (!form.reportValidity() || empty || submitting) return;
+    if (!customer || !open || belowMinimum || !form.reportValidity() || empty || submitting) return;
     const val = (id: string) => (form.elements.namedItem(id) as HTMLInputElement | null)?.value ?? "";
 
     setSubmitting(true);
@@ -158,22 +167,32 @@ export default function CheckoutClient({ onlinePay }: { onlinePay: boolean }) {
             <>
               {!empty && (
                 <div>
-                  <form className="panel" id="orderForm" onSubmit={submit}>
+                  {!customer && (
+                    <div className="panel" style={{ marginBottom: 18 }}>
+                      <h2>Log in to place your order</h2>
+                      <p style={{ margin: "0 0 16px" }}>Your cart is saved. Sign in (or create an account — we&apos;ll verify your email with a code) and you&apos;ll come straight back here.</p>
+                      <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+                        <Link href="/login?next=/checkout" className="btn btn-rust">Log In</Link>
+                        <Link href="/signup?next=/checkout" className="btn btn-out">Sign Up</Link>
+                      </div>
+                    </div>
+                  )}
+                  {customer && <form className="panel" id="orderForm" onSubmit={submit}>
                     <h2>Delivery Details</h2>
                     <div className="form-grid">
                       <div className="field full">
                         <label htmlFor="fEmail">Email<i>*</i></label>
-                        <input type="email" id="fEmail" placeholder="Enter Email" required />
+                        <input type="email" id="fEmail" placeholder="Enter Email" required defaultValue={customer?.email ?? ""} readOnly={lockEmail} />
                       </div>
                       <div className="field">
                         <label htmlFor="fName">Full Name<i>*</i></label>
-                        <input type="text" id="fName" placeholder="Enter Full Name" required />
+                        <input type="text" id="fName" placeholder="Enter Full Name" required defaultValue={customer?.name ?? ""} />
                       </div>
                       <div className="field">
                         <label htmlFor="fMobile">Mobile Number<i>*</i></label>
                         <input
                           type="tel" id="fMobile" placeholder="03XXXXXXXXX" pattern="03[0-9]{9}" required
-                          value={mobile}
+                          value={mobile} readOnly={lockMobile}
                           onChange={(e) => setMobile(e.target.value)}
                         />
                       </div>
@@ -251,7 +270,7 @@ export default function CheckoutClient({ onlinePay }: { onlinePay: boolean }) {
                     {pay === "safepay" && (
                       <p className="online-note">You&apos;ll be taken to Safepay&apos;s secure page to pay with JazzCash, Easypaisa, your bank account or a card.</p>
                     )}
-                  </form>
+                  </form>}
                 </div>
               )}
 
@@ -269,7 +288,7 @@ export default function CheckoutClient({ onlinePay }: { onlinePay: boolean }) {
                     <div className="sum-items">
                       {cart.map((it, idx) => (
                         <div className="sum-item" key={`${it.name}-${it.addon ? "a" : "i"}`}>
-                          <Image src={it.img} alt="" width={64} height={64} />
+                          <Image src={it.img} alt="" width={120} height={120} />
                           <div className="sum-item-info">
                             <b>{it.name}</b>
                             <span className="sum-item-price">{money(it.price)}</span>
@@ -295,8 +314,18 @@ export default function CheckoutClient({ onlinePay }: { onlinePay: boolean }) {
                       <div><span>Delivery Charges</span><span>{money(fee)}</span></div>
                       <div className="grand"><span>Total</span><b>{money(total)}</b></div>
                     </div>
+                    {!open && <p role="alert" style={{ color: "var(--rust)", fontWeight: 700, margin: "0 0 12px" }}>{CLOSED_MESSAGE}</p>}
+                    {open && belowMinimum && (
+                      <p role="alert" style={{ color: "var(--rust)", fontWeight: 700, margin: "0 0 12px" }}>
+                        Delivery orders start at {money(MIN_DELIVERY_ORDER)} — add {money(MIN_DELIVERY_ORDER - subtotal)} more, or choose pick-up.
+                      </p>
+                    )}
                     {error && <p role="alert" style={{ color: "var(--rust)", fontWeight: 700, margin: "0 0 12px" }}>{error}</p>}
-                    <button type="submit" form="orderForm" className="btn btn-rust" disabled={submitting}>{submitting ? "Placing order…" : "Place Order"}</button>
+                    {customer ? (
+                      <button type="submit" form="orderForm" className="btn btn-rust" disabled={submitting || !open || belowMinimum}>{submitting ? "Placing order…" : "Place Order"}</button>
+                    ) : (
+                      <Link href="/login?next=/checkout" className="btn btn-rust">Log in to order</Link>
+                    )}
                   </>
                 )}
               </aside>

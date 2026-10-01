@@ -5,9 +5,11 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import EmailOtpStep from "./EmailOtpStep";
+import { withNext } from "@/lib/nextPath";
 import EyeToggle from "./EyeToggle";
 
-export default function LoginClient() {
+// next: where to go once signed in (the checkout, when someone was sent here from it)
+export default function LoginClient({ next = "/account" }: { next?: string }) {
   const router = useRouter();
   const [verifying, setVerifying] = useState(false);
 
@@ -35,7 +37,7 @@ export default function LoginClient() {
         return;
       }
       if (!res.ok) { setError(data.error || "Something went wrong. Please try again."); return; }
-      router.push("/account");
+      router.push(next);
       router.refresh();
     } catch {
       setError("Network problem. Please try again.");
@@ -54,7 +56,7 @@ export default function LoginClient() {
 
           <div className="login-body">
             {verifying ? (
-              <EmailOtpStep email={email.trim().toLowerCase()} onBack={() => setVerifying(false)} />
+              <EmailOtpStep email={email.trim().toLowerCase()} next={next} onBack={() => setVerifying(false)} />
             ) : (<>
             <h1 className="display">Hey!<br /><span className="rust">Up for a bite to eat?</span></h1>
             <p className="login-sub">Let&apos;s enjoy your food with mccoy&apos;s!</p>
@@ -82,7 +84,7 @@ export default function LoginClient() {
               <button type="submit" className="btn btn-rust login-btn-full" disabled={busy}>{busy ? "Signing in…" : "Sign In"}</button>
             </form>
 
-            <p className="login-switch">Don&apos;t have an account? <Link href="/signup">Sign Up</Link></p>
+            <p className="login-switch">Don&apos;t have an account? <Link href={withNext("/signup", next)}>Sign Up</Link></p>
 
             <p className="login-fine">By continuing, you agree to mccoy&apos;s <a href="#">Terms</a> &amp; <a href="/privacy">Privacy Policy</a>.</p>
             </>)}

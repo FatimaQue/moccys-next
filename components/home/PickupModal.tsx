@@ -1,10 +1,11 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { HOURS_LABEL, isOpenNow } from "@/lib/hours";
 import { gmapsSrc } from "./maps";
 
 const BRANCHES = [
-  { name: "I-8 Markaz Islamabad", lat: 33.6614, lng: 73.0836, hours: "02:00 PM – 04:00 AM", open: true },
+  { name: "I-8 Markaz Islamabad", lat: 33.6614, lng: 73.0836, hours: HOURS_LABEL },
 ];
 
 export default function PickupModal({ open, onClose }: { open: boolean; onClose: () => void }) {
@@ -55,7 +56,10 @@ export default function PickupModal({ open, onClose }: { open: boolean; onClose:
                 <div className="branch-info">
                   <b>{b.name}</b>
                   <div className="branch-hours">{b.hours}</div>
-                  <div className="branch-status"><span className="open">Open Now</span></div>
+                  <div className="branch-status">
+                    {/* the time on the server and in the browser can differ by a render, hence suppressHydrationWarning */}
+                    <span className="open" style={isOpenNow() ? undefined : { color: "#B3261E" }} suppressHydrationWarning>{isOpenNow() ? "Open Now" : "Closed"}</span>
+                  </div>
                 </div>
                 <span className="branch-chev"><svg viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg></span>
               </div>

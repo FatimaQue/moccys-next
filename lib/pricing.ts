@@ -2,6 +2,8 @@ import { ADDONS } from "@/data/addons";
 import { categories } from "@/data/menu";
 
 export const DELIVERY_FEE = 59;
+// delivery orders must come to at least this much in food (before the delivery fee); pick-up has no minimum
+export const MIN_DELIVERY_ORDER = 500;
 
 // parent is the menu item a cart line belongs to, which is what the inventory page switches on and off
 export type Priced = { price: number; img: string; parent: string };

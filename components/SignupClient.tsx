@@ -3,10 +3,12 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useState } from "react";
+import { withNext } from "@/lib/nextPath";
 import EmailOtpStep from "./EmailOtpStep";
 import EyeToggle from "./EyeToggle";
 
-export default function SignupClient() {
+// next: where to go once the email is verified (the checkout, when someone was sent here from it)
+export default function SignupClient({ next = "/account" }: { next?: string }) {
   const [verifying, setVerifying] = useState(false);
   const [firstName, setFirstName] = useState("");
   const [lastName, setLastName] = useState("");
@@ -49,7 +51,7 @@ export default function SignupClient() {
 
           <div className="login-body">
             {verifying ? (
-              <EmailOtpStep email={email.trim().toLowerCase()} onBack={() => setVerifying(false)} />
+              <EmailOtpStep email={email.trim().toLowerCase()} next={next} onBack={() => setVerifying(false)} />
             ) : (<>
             <h1 className="display">Join<br /><span className="rust">mccoy&apos;s</span></h1>
             <p className="login-sub">Create an account to order faster next time.</p>
@@ -102,7 +104,7 @@ export default function SignupClient() {
               <button type="submit" className="btn btn-rust login-btn-full" disabled={busy}>{busy ? "Creating account…" : "Create Account"}</button>
             </form>
 
-            <p className="login-switch">Already have an account? <Link href="/login">Login</Link></p>
+            <p className="login-switch">Already have an account? <Link href={withNext("/login", next)}>Login</Link></p>
             </>)}
           </div>
         </div>

@@ -7,7 +7,7 @@ const RESEND_SECONDS = 60; // Supabase's default minimum gap between emails to o
 
 // "enter the 6-digit code we emailed you" step, shared by signup and by login for accounts that never
 // finished verifying. Renders inside .login-body in place of the form.
-export default function EmailOtpStep({ email, onBack }: { email: string; onBack: () => void }) {
+export default function EmailOtpStep({ email, onBack, next = "/account" }: { email: string; onBack: () => void; next?: string }) {
   const router = useRouter();
   const [code, setCode] = useState("");
   const [busy, setBusy] = useState(false);
@@ -34,7 +34,7 @@ export default function EmailOtpStep({ email, onBack }: { email: string; onBack:
     try {
       const r = await post("/api/auth/verify-email", { email, code });
       if (!r.ok) { setError(r.error); return; }
-      router.push("/account");
+      router.push(next);
       router.refresh();
     } catch {
       setError("Network problem. Please try again.");

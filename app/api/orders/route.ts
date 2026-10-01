@@ -1,8 +1,10 @@
 import { NextResponse } from "next/server";
+import { getCustomer } from "@/lib/customer";
+import { CLOSED_MESSAGE, isOpenNow } from "@/lib/hours";
 import { customCatalog } from "@/lib/menuShared";
 import { getMenuState } from "@/lib/menuStore";
 import { logOrderEvent } from "@/lib/orderEvents";
-import { addonCatalog, DELIVERY_FEE, menuCatalog } from "@/lib/pricing";
+import { addonCatalog, DELIVERY_FEE, MIN_DELIVERY_ORDER, menuCatalog } from "@/lib/pricing";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 type Body = {
@@ -15,7 +17,18 @@ const bad = (error: string) => NextResponse.json({ error }, { status: 400 });
 const clean = (v: unknown, max: number) => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const FAILED = "Could not place your order. Please try again.";
 
+// Per signed-in account, counted from the orders table itself. Kept deliberately loose so a real customer
+// ordering for a group is never blocked, while a script can't flood the kitchen board.
+const LIMITS = [
+  { minutes: 10, max: 3 },
+  { minutes: 24 * 60, max: 15 },
+];
+
 export async function POST(req: Request) {
+  // ordering needs a verified account (email OTP at sign-up), so there is no anonymous way to place an order
+  const customer = await getCustomer();
+  if (!customer) return NextResponse.json({ error: "Please log in to place your order." }, { status: 401 });
+
   let b: Body;
   try {
     b = await req.json();
@@ -23,9 +36,14 @@ export async function POST(req: Request) {
     return bad("Invalid request.");
   }
 
+  if (!isOpenNow()) return bad(CLOSED_MESSAGE);
+
   const name = clean(b.name, 100);
-  const email = clean(b.email, 150);
-  const mobile = clean(b.mobile, 11);
+  // The account's verified contact can't be swapped for another one in the request: an email account always
+  // orders under its own verified email, a phone-only account under its own verified number. That is what makes
+  // the limit below something a script can't dodge by typing different details.
+  const email = customer.email ?? clean(b.email, 150).toLowerCase();
+  const mobile = customer.email ? clean(b.mobile, 11) : (customer.phone ?? "");
   const delivery = b.orderType === "delivery";
   const city = clean(b.city, 40);
   const address = clean(b.address, 250);
@@ -59,8 +77,20 @@ export async function POST(req: Request) {
   }
 
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+  if (delivery && subtotal < MIN_DELIVERY_ORDER) {
+    return bad(`Delivery orders start at Rs. ${MIN_DELIVERY_ORDER.toLocaleString("en-US")} (yours is Rs. ${subtotal.toLocaleString("en-US")}). Add a little more, or choose pick-up.`);
+  }
   const delivery_fee = delivery ? DELIVERY_FEE : 0;
   const db = supabaseAdmin();
+
+  const [col, who] = customer.email ? (["email", email] as const) : (["mobile", mobile] as const);
+  for (const { minutes, max } of LIMITS) {
+    const { count } = await db.from("orders").select("id", { count: "exact", head: true })
+      .eq(col, who).gte("created_at", new Date(Date.now() - minutes * 60_000).toISOString());
+    if ((count ?? 0) >= max) {
+      return NextResponse.json({ error: "You've placed several orders in a short time. Please wait a few minutes and try again." }, { status: 429 });
+    }
+  }
 
   // the order number is what the customer sees; retry on the rare collision
   for (let attempt = 0; attempt < 5; attempt++) {

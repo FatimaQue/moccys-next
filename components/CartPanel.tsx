@@ -23,7 +23,7 @@ export default function CartPanel() {
             <div className="cart-items">
               {cart.map((it, idx) => (
                 <div className={"cart-item" + (it.addon ? " is-addon" : "")} key={`${it.name}-${it.addon ? "a" : "i"}`}>
-                  <Image src={it.img} alt="" width={64} height={64} />
+                  <Image src={it.img} alt="" width={84} height={84} />
                   <div className="cart-item-info">
                     <b>{it.name}</b>
                     <span>{money(it.price)}{it.qty > 1 ? ` × ${it.qty}` : ""}</span>
