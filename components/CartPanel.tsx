@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { money, useCart } from "./CartProvider";
 
@@ -22,9 +23,7 @@ export default function CartPanel() {
             <div className="cart-items">
               {cart.map((it, idx) => (
                 <div className={"cart-item" + (it.addon ? " is-addon" : "")} key={`${it.name}-${it.addon ? "a" : "i"}`}>
-                  {/* plain img: cart lines are tiny thumbnails from localStorage, next/image adds nothing here */}
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={it.img} alt="" />
+                  <Image src={it.img} alt="" width={64} height={64} />
                   <div className="cart-item-info">
                     <b>{it.name}</b>
                     <span>{money(it.price)}{it.qty > 1 ? ` × ${it.qty}` : ""}</span>

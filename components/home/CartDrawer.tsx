@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
 import { money, useCart } from "../CartProvider";
@@ -35,8 +36,7 @@ export default function CartDrawer({ open, onClose }: { open: boolean; onClose: 
           ) : (
             cart.map((it, idx) => (
               <div className="cart-line" key={`${it.name}-${it.addon ? "a" : "i"}`}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={it.img} alt="" />
+                <Image src={it.img} alt="" width={64} height={64} />
                 <div className="cart-line-info">
                   <b>{it.name}</b>
                   <span className="cart-line-price">{money(it.price)}</span>

@@ -269,8 +269,7 @@ export default function CheckoutClient({ onlinePay }: { onlinePay: boolean }) {
                     <div className="sum-items">
                       {cart.map((it, idx) => (
                         <div className="sum-item" key={`${it.name}-${it.addon ? "a" : "i"}`}>
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={it.img} alt="" />
+                          <Image src={it.img} alt="" width={64} height={64} />
                           <div className="sum-item-info">
                             <b>{it.name}</b>
                             <span className="sum-item-price">{money(it.price)}</span>
