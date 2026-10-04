@@ -262,28 +262,71 @@ export default function HomeClient() {
         };
       });
 
-      // same pinned scroll-jack as desktop, but items are stacked (image row, then text/price/cart row)
-      // by the mobile CSS instead of overlapping — so the crossfade only moves the item + bg color
+      // every stacked layout (phones, tablets, short windows): no scroll-jacking. The section is one screen tall (CSS) and the items rotate on their own,
+      // looping endlessly. Touching an item (or a dot) stops the rotation so the user can add it to the cart;
+      // it starts again after a stretch of inactivity.
       mq.add("not all and (min-width: 1181px) and (min-height: 530px)", () => {
+        const AUTO_MS = 5000;
+        const RESUME_MS = 15000;
+        let cur = 0;
+        let visible = false;
+        let paused = false;
+        let timer: ReturnType<typeof setTimeout> | undefined;
+        let resumeTimer: ReturnType<typeof setTimeout> | undefined;
+
         gsap.set(bg, { backgroundColor: colors[0] });
         gsap.set(items, { opacity: 0, y: 36 });
         gsap.set(items[0], { opacity: 1, y: 0 });
         items.forEach((it, i) => { it.style.pointerEvents = i === 0 ? "auto" : "none"; });
+        setShowIdx(0);
 
-        const tl = makeTimeline();
-        for (let i = 0; i < n - 1; i++) {
-          const pos = LEAD + i;
-          tl.to(items[i], { opacity: 0, y: -36, duration: 1, ease: "power2.inOut" }, pos)
-            .fromTo(items[i + 1], { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 1, ease: "power2.inOut" }, pos)
-            .to(bg, { backgroundColor: colors[i + 1], duration: 1, ease: "power2.inOut" }, pos);
-        }
-        tl.to({}, { duration: TAIL }, LEAD + n - 1);
+        const show = (next: number) => {
+          if (next === cur) return;
+          const prev = cur;
+          cur = next;
+          gsap.to(items[prev], { opacity: 0, y: -36, duration: 0.6, ease: "power2.inOut", overwrite: true });
+          gsap.fromTo(items[next], { opacity: 0, y: 36 }, { opacity: 1, y: 0, duration: 0.6, ease: "power2.inOut", overwrite: true });
+          gsap.to(bg, { backgroundColor: colors[next], duration: 0.6, ease: "power2.inOut", overwrite: true });
+          items.forEach((it, i) => { it.style.pointerEvents = i === next ? "auto" : "none"; });
+          setShowIdx(next);
+        };
 
-        const unwire = wireDots(tl);
+        const schedule = () => {
+          clearTimeout(timer);
+          if (paused || !visible) return;
+          timer = setTimeout(() => { show((cur + 1) % n); schedule(); }, AUTO_MS);
+        };
+
+        const pause = () => {
+          paused = true;
+          clearTimeout(timer);
+          clearTimeout(resumeTimer);
+          resumeTimer = setTimeout(() => { paused = false; schedule(); }, RESUME_MS);
+        };
+
+        const stage = root.querySelector(".showcase-stage") as HTMLElement;
+        stage.addEventListener("pointerdown", pause);
+        const dotFns = dots.map((d) => {
+          const fn = () => { pause(); show(Number(d.dataset.i)); };
+          d.addEventListener("click", fn);
+          return () => d.removeEventListener("click", fn);
+        });
+
+        // only rotate while the section is actually on screen
+        const st = ScrollTrigger.create({
+          trigger: "#showcase",
+          start: "top bottom",
+          end: "bottom top",
+          onToggle: (self) => { visible = self.isActive; schedule(); },
+        });
+
         return () => {
-          unwire();
-          tl.scrollTrigger?.kill();
-          tl.kill();
+          clearTimeout(timer);
+          clearTimeout(resumeTimer);
+          stage.removeEventListener("pointerdown", pause);
+          dotFns.forEach((f) => f());
+          st.kill();
+          gsap.killTweensOf([...items, bg]);
           gsap.set(items, { clearProps: "all" });
           items.forEach((it) => { it.style.pointerEvents = ""; });
         };

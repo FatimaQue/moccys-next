@@ -121,6 +121,10 @@ export default function Nav({
             />
             <svg className="go" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" /></svg>
           </div>
+          <a href="tel:+923123358582" className="navphone" aria-label="Call or WhatsApp us on +92 312 3358582">
+            <svg viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M6.6 10.8a15.1 15.1 0 006.6 6.6l2.2-2.2a1 1 0 011-.25 11.4 11.4 0 003.6.57 1 1 0 011 1V20a1 1 0 01-1 1A17 17 0 013 4a1 1 0 011-1h3.5a1 1 0 011 1c0 1.25.2 2.45.57 3.57a1 1 0 01-.25 1z" /></svg>
+            <span>+92 312 3358582</span>
+          </a>
         </div>
 
         <div className="nav-actions">

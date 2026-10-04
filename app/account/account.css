@@ -44,3 +44,27 @@
 .pg-account .acct-empty{color:var(--muted);text-align:center;padding:26px 0;}
 .pg-account .acct-msg{margin-top:20px;text-align:center;font-size:13.5px;font-weight:700;color:#12703A;}
 .pg-account .acct-msg.err{color:var(--rust);}
+
+/* ---- saved addresses ---- */
+.pg-account .acct-addr{display:flex;align-items:center;gap:16px;background:#F3F4F8;border-radius:16px;padding:14px 18px;}
+.pg-account .acct-addr-pin{flex:none;width:64px;height:64px;border-radius:16px;background:var(--ink);display:flex;align-items:center;justify-content:center;}
+.pg-account .acct-addr-pin svg{width:30px;height:30px;fill:var(--rust-hi,#E5384F);}
+.pg-account .acct-addr-text{flex:1;min-width:0;display:flex;flex-direction:column;gap:6px;}
+.pg-account .acct-addr-text>strong{font-size:16px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.pg-account .acct-addr-row{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;}
+.pg-account .acct-addr-row>span{font-size:13.5px;color:var(--muted);min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pg-account .acct-addr-actions{display:flex;gap:16px;}
+.pg-account .acct-addr-actions button{background:none;border:0;padding:0;font:inherit;font-size:12px;font-weight:800;letter-spacing:.06em;text-transform:uppercase;color:var(--ink);cursor:pointer;}
+.pg-account .acct-addr-actions button:hover{color:var(--rust);}
+.pg-account .acct-addr-actions .rm{color:var(--rust);}
+.pg-account .acct-addr-actions button:disabled{opacity:.5;cursor:default;}
+
+.pg-account .acct-editaddr{max-width:480px;}
+.pg-account .acct-editaddr h2{font-family:'Exo 2',sans-serif;font-weight:800;font-size:clamp(24px,4vw,30px);margin:0 0 4px;}
+.pg-account .acct-editaddr .btn-out{background:transparent;border:1.5px solid var(--ink);color:var(--ink);}
+.pg-account .acct-editaddr .btn-out:hover{border-color:var(--rust);color:var(--rust);}
+@media (max-width:520px){
+  .pg-account .acct-addr{gap:12px;padding:12px;}
+  .pg-account .acct-addr-pin{width:52px;height:52px;border-radius:13px;}
+  .pg-account .acct-addr-actions{gap:12px;}
+}

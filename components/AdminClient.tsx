@@ -12,11 +12,12 @@ type Phase = "pending" | "preparing" | "ready" | "out" | "delivered";
 type Status = Phase | "rejected";
 // one order as /api/admin/orders returns it
 type Order = {
-  dbId: number; id: string; status: Status; customer: string; items: string; total: number; address: string;
+  dbId: number; id: string; status: Status; orderType: "delivery" | "pickup"; customer: string; items: string; total: number; address: string;
   createdAt: string; name: string; img?: string; details: string[];
   driver: string | null; deliveredAt: string | null;
 };
 type Driver = DriverInfo;
+type Column = Phase | "pickup"; // "pickup" is a board column only: ready orders the customer collects themselves
 type Action = "accept" | "reject" | "ready" | "dispatch" | "delivered";
 
 const timeOf = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "—");
@@ -35,6 +36,7 @@ const ago = (iso: string, now: number) => {
   return m < 1 ? "just now" : m < 60 ? `${m} min ago` : m < 1440 ? `${Math.floor(m / 60)} h ago` : `${Math.floor(m / 1440)} d ago`;
 };
 const NEW_MINUTES = 15;
+const stamp = () => Date.now(); // a plain function so the move's timestamp is read in the click handler, not during render
 
 const money = (n: number) => "Rs. " + n.toLocaleString("en-US");
 
@@ -52,13 +54,15 @@ function chime() {
   } catch { /* audio blocked until the page has been interacted with */ }
 }
 
-const TABS: { phase: Phase; label: string; accent: string; icon: React.ReactNode }[] = [
+const TABS: { phase: Column; label: string; accent: string; icon: React.ReactNode }[] = [
   { phase: "pending", label: "New / Pending", accent: "var(--rust)",
     icon: <><circle cx="12" cy="12" r="9" /><path d="M12 8v4" /><path d="M12 16h.01" /></> },
   { phase: "preparing", label: "Preparing", accent: "var(--amber)",
     icon: <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 3" /></> },
   { phase: "ready", label: "Ready for Pick Up", accent: "var(--green)",
     icon: <><path d="M21 8l-9-5-9 5 9 5 9-5z" /><path d="M3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></> },
+  { phase: "pickup", label: "Customer Pick Up", accent: "var(--amber)",
+    icon: <><path d="M5 7l1-4h12l1 4" /><path d="M5 7h14v12H5z" /><path d="M9 11v4h6v-4" /></> },
   { phase: "out", label: "Out for Delivery", accent: "var(--muted)",
     icon: <><path d="M3 7h11v9H3z" /><path d="M14 10h4l3 3v3h-7z" /><circle cx="7" cy="18" r="1.6" /><circle cx="17" cy="18" r="1.6" /></> },
   { phase: "delivered", label: "Delivered", accent: "var(--green)",
@@ -72,12 +76,15 @@ const PILL: Record<Status, [string, string]> = {
 
 export default function AdminClient() {
   const [page, setPage] = useState<"dashboard" | "orders" | "reports" | "inventory" | "drivers">("dashboard");
+  const [menuOpen, setMenuOpen] = useState(false); // the sidebar drawer on phones
   const router = useRouter();
   const [all, setAll] = useState<Order[]>([]);
   const [orderSearch, setOrderSearch] = useState("");
   const [loaded, setLoaded] = useState(false);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [pick, setPick] = useState<Record<number, string>>({}); // driver chosen per order before "Send Out"
+  // moves the admin just made that the server may not have caught up with yet (a poll already in flight can return the old status)
+  const pendingMoves = useRef(new Map<number, { status: Status; driver?: string | null; at: number }>());
   const [now, setNow] = useState(0); // refreshed with every poll so "New" badges age out
   const [loadError, setLoadError] = useState<string | null>(null);
   const [sound, setSound] = useState(true);
@@ -105,8 +112,14 @@ export default function AdminClient() {
       if (res.status === 401) { router.replace("/admin/login"); return; }
       if (!res.ok) throw new Error();
       const { orders } = (await res.json()) as { orders: Order[] };
-      setAll(orders);
-      setNow(Date.now());
+      const t = Date.now();
+      setAll(orders.map((o) => {
+        const m = pendingMoves.current.get(o.dbId);
+        if (!m) return o;
+        if (o.status === m.status || t - m.at > 20_000) { pendingMoves.current.delete(o.dbId); return o; } // server caught up (or gave up)
+        return { ...o, status: m.status, ...(m.driver !== undefined ? { driver: m.driver } : {}) }; // stale read: keep showing the move
+      }));
+      setNow(t);
       setLoadError(null);
     } catch {
       setLoadError("Couldn't load orders. Retrying…");
@@ -144,8 +157,8 @@ export default function AdminClient() {
 
   // no realtime channel: the board just re-reads the orders and the feed every few seconds
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- the first fetch has to start after mount
     load();
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the first fetch has to start after mount
     loadEvents();
     const t = setInterval(() => { load(); loadEvents(); }, POLL_MS);
     return () => clearInterval(t);
@@ -191,11 +204,12 @@ export default function AdminClient() {
     const driverId = pick[dbId] ?? (activeDrivers.length === 1 ? activeDrivers[0].id : undefined);
     if (action === "dispatch" && !driverId) { showToast("Pick a driver first."); return; }
     const driver = drivers.find((d) => d.id === driverId)?.name ?? null;
+    pendingMoves.current.set(dbId, { status, at: stamp(), ...(action === "dispatch" ? { driver } : {}) });
     setAll((prev) => prev.map((o) => (o.dbId === dbId ? { ...o, status, ...(action === "dispatch" ? { driver } : {}) } : o))); // move it right away, confirm below
     const res = await fetch(`/api/admin/orders/${dbId}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, driverId }),
     }).catch(() => null);
-    if (!res?.ok) showToast("Couldn't update that order. Please try again.");
+    if (!res?.ok) { pendingMoves.current.delete(dbId); showToast("Couldn't update that order. Please try again."); }
     load();
   };
 
@@ -205,12 +219,18 @@ export default function AdminClient() {
   };
 
   const orders = useMemo(() => {
-    const g: Record<Phase, Order[]> = { pending: [], preparing: [], ready: [], out: [], delivered: [] };
+    const g: Record<Column, Order[]> = { pending: [], preparing: [], ready: [], pickup: [], out: [], delivered: [] };
     // oldest first so the kitchen works through them in the order they came in
-    [...all].reverse().forEach((o) => { if (o.status in g) g[o.status as Phase].push(o); });
+    const today = new Date(now).toDateString(); // the Delivered column is just today's deliveries; earlier days live in Reports/Orders
+    [...all].reverse().forEach((o) => {
+      if (!(o.status in g)) return;
+      if (o.status === "delivered" && (!o.deliveredAt || new Date(o.deliveredAt).toDateString() !== today)) return;
+      // a ready pick-up order waits for the customer in its own column; a ready delivery order waits for a rider
+      g[o.status === "ready" && o.orderType === "pickup" ? "pickup" : (o.status as Phase)].push(o);
+    });
     g.delivered.sort((a, b) => (b.deliveredAt ?? "").localeCompare(a.deliveredAt ?? "")); // latest delivery first
     return g;
-  }, [all]);
+  }, [all, now]);
 
   const isNew = (o: Order) => o.status === "pending" && now - new Date(o.createdAt).getTime() < NEW_MINUTES * 60_000;
 
@@ -223,29 +243,31 @@ export default function AdminClient() {
   return (
     <>
       <div className="app">
-        <aside className="sidebar">
+        <div className={"side-overlay" + (menuOpen ? " open" : "")} onClick={() => setMenuOpen(false)} />
+        <aside className={"sidebar" + (menuOpen ? " open" : "")} aria-label="Admin menu">
           <div className="brand">
             <Image className="brand-logo" src="/images/Logo-01.png" alt="McCoy's" width={160} height={32} />
             <div className="brand-sub">Admin</div>
+            <button className="side-close" aria-label="Close menu" onClick={() => setMenuOpen(false)}>&times;</button>
           </div>
           <nav className="nav">
-            <a className={"navlink" + (page === "dashboard" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setPage("dashboard"); }}>
+            <a className={"navlink" + (page === "dashboard" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); setPage("dashboard"); }}>
               <svg viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="9" rx="1.5" /><rect x="14" y="3" width="7" height="5" rx="1.5" /><rect x="14" y="12" width="7" height="9" rx="1.5" /><rect x="3" y="16" width="7" height="5" rx="1.5" /></svg>
               Dashboard
             </a>
-            <a className={"navlink" + (page === "orders" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setPage("orders"); }}>
+            <a className={"navlink" + (page === "orders" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); setPage("orders"); }}>
               <svg viewBox="0 0 24 24"><path d="M3 7h18l-1.5 12.2a2 2 0 01-2 1.8H6.5a2 2 0 01-2-1.8L3 7z" /><path d="M8 7V5a4 4 0 018 0v2" /></svg>
               Orders
             </a>
-            <a className={"navlink" + (page === "reports" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setPage("reports"); }}>
+            <a className={"navlink" + (page === "reports" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); setPage("reports"); }}>
               <svg viewBox="0 0 24 24"><path d="M4 20V10" /><path d="M10 20V4" /><path d="M16 20v-7" /><path d="M22 20H2" /></svg>
               Reports
             </a>
-            <a className={"navlink" + (page === "inventory" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setPage("inventory"); }}>
+            <a className={"navlink" + (page === "inventory" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); setPage("inventory"); }}>
               <svg viewBox="0 0 24 24"><path d="M21 8l-9-5-9 5 9 5 9-5z" /><path d="M3 8v8l9 5 9-5V8" /><path d="M12 13v8" /></svg>
               Inventory
             </a>
-            <a className={"navlink" + (page === "drivers" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setPage("drivers"); }}>
+            <a className={"navlink" + (page === "drivers" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); setPage("drivers"); }}>
               <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg>
               Riders
             </a>
@@ -254,6 +276,9 @@ export default function AdminClient() {
 
         <div className="main">
           <header className="topbar">
+            <button className="menu-btn" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
+              <span></span><span></span><span></span>
+            </button>
             <h1>{page === "dashboard" ? "Dashboard — Live" : page === "reports" ? "Reports" : page === "inventory" ? "Inventory" : page === "drivers" ? "Riders" : "Orders"}</h1>
             <div className="topbar-right">
               <div className="bell-wrap">
@@ -338,7 +363,7 @@ export default function AdminClient() {
                             <ul className="order-details">{o.details?.map((d) => <li key={d}>{d}</li>)}</ul>
 
                             {t.phase === "delivered" ? (
-                              <div className="card-status">Delivered by {o.driver ?? "—"} · {timeOf(o.deliveredAt)}</div>
+                              <div className="card-status">{o.orderType === "pickup" ? "Picked up" : `Delivered by ${o.driver ?? "—"}`} · {timeOf(o.deliveredAt)}</div>
                             ) : t.phase === "out" ? (
                               <div className="card-status">En route · {o.driver ?? "no driver"}</div>
                             ) : (
@@ -355,6 +380,7 @@ export default function AdminClient() {
                               </div>
                             )}
                             {t.phase === "preparing" && <button className="btn-ready" onClick={() => handleAction(o.dbId, "ready")}>Mark Ready</button>}
+                            {t.phase === "pickup" && <button className="btn-ready" onClick={() => handleAction(o.dbId, "delivered")}>Mark Delivered</button>}
                             {t.phase === "ready" && (
                               <div className="card-actions">
                                 <select className="driver-pick" value={pick[o.dbId] ?? (activeDrivers.length === 1 ? activeDrivers[0].id : "")} onChange={(e) => setPick((p) => ({ ...p, [o.dbId]: e.target.value }))}>

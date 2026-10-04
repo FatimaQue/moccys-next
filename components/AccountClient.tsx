@@ -28,6 +28,9 @@ export default function AccountClient({
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [label, setLabel] = useState("");
   const [addr, setAddr] = useState("");
+  const [editing, setEditing] = useState<number | null>(null); // index of the address being edited
+  const [editLabel, setEditLabel] = useState("");
+  const [editAddr, setEditAddr] = useState("");
   const [msg, setMsg] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -62,6 +65,13 @@ export default function AccountClient({
   const removeAddress = async (i: number) => {
     const next = addresses.filter((_, idx) => idx !== i);
     if (await save({ addresses: next }, "Address removed.")) setAddresses(next);
+  };
+
+  const startEdit = (i: number) => { setEditing(i); setEditLabel(addresses[i].label); setEditAddr(addresses[i].address); setMsg(""); };
+  const updateAddress = async () => {
+    if (editing === null || !editAddr.trim()) return;
+    const next = addresses.map((a, i) => (i === editing ? { label: editLabel.trim() || "Home", address: editAddr.trim() } : a));
+    if (await save({ addresses: next }, "Address updated.")) { setAddresses(next); setEditing(null); }
   };
 
   const uploadAvatar = async (file: File) => {
@@ -139,13 +149,32 @@ export default function AccountClient({
         </div>
       )}
 
-      {tab === "addresses" && (
+      {tab === "addresses" && (editing !== null ? (
+        <form className="acct-form acct-editaddr" onSubmit={(e) => { e.preventDefault(); updateAddress(); }}>
+          <h2>Update address</h2>
+          <label>Label (Home, Work…)<input value={editLabel} onChange={(e) => setEditLabel(e.target.value)} maxLength={30} placeholder="Home, Work…" /></label>
+          <label>Address<input value={editAddr} onChange={(e) => setEditAddr(e.target.value)} maxLength={250} placeholder="House, street, area, city" required autoFocus /></label>
+          <button type="submit" className="btn btn-rust" disabled={saving || !editAddr.trim()}>{saving ? "Saving…" : "Update"}</button>
+          <button type="button" className="btn btn-out" onClick={() => setEditing(null)}>Cancel</button>
+        </form>
+      ) : (
         <div className="acct-list">
           {!addresses.length && <p className="acct-empty">No saved addresses yet.</p>}
           {addresses.map((a, i) => (
-            <div className="acct-order" key={i}>
-              <div><strong>{a.label}</strong><span>{a.address}</span></div>
-              <button type="button" className="acct-x" onClick={() => removeAddress(i)} disabled={saving}>Remove</button>
+            <div className="acct-addr" key={i}>
+              <div className="acct-addr-pin" aria-hidden="true">
+                <svg viewBox="0 0 24 24"><path d="M12 2a7 7 0 00-7 7c0 5.2 7 13 7 13s7-7.8 7-13a7 7 0 00-7-7zm0 9.5A2.5 2.5 0 1114.5 9 2.5 2.5 0 0112 11.5z" /></svg>
+              </div>
+              <div className="acct-addr-text">
+                <strong title={a.address}>{a.address}</strong>
+                <div className="acct-addr-row">
+                  <span>{a.label}</span>
+                  <div className="acct-addr-actions">
+                    <button type="button" onClick={() => startEdit(i)} disabled={saving}>Edit address</button>
+                    <button type="button" className="rm" onClick={() => removeAddress(i)} disabled={saving}>Remove</button>
+                  </div>
+                </div>
+              </div>
             </div>
           ))}
           <div className="acct-form acct-addform">
@@ -154,7 +183,7 @@ export default function AccountClient({
             <button type="button" className="btn btn-rust" onClick={addAddress} disabled={saving || !addr.trim()}>Add address</button>
           </div>
         </div>
-      )}
+      ))}
 
       {msg && <p className={"acct-msg" + (msg.startsWith("Could not") ? " err" : "")} role="status">{msg}</p>}
     </main>

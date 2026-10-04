@@ -115,8 +115,11 @@
 /* long search bar dominates the middle; the address box trails it at a fixed, narrower width — same ratio as the reference */
 .pg-home .findbox-clear{flex:none;background:none;border:0;color:var(--muted-d);font-size:18px;line-height:1;cursor:pointer;padding:0 2px;}
 .pg-home .findbox-clear:hover{color:#fff;}
-.pg-home .findbox-search{flex:1;min-width:0;}
-.pg-home .findbox-loc{flex:none;width:230px;cursor:pointer;}
+.pg-home .findbox-search{flex:1;min-width:0;max-width:340px;}
+.pg-home .navphone{flex:none;display:flex;align-items:center;gap:8px;color:#fff;font-weight:700;font-size:13.5px;letter-spacing:.2px;white-space:nowrap;text-decoration:none;}
+.pg-home .navphone svg{width:18px;height:18px;color:#ff3b3b;}
+.pg-home .navphone:hover span{color:var(--amber);}
+.pg-home .findbox-loc{flex:0 1 190px;min-width:110px;margin-left:auto;cursor:pointer;}
 
 /* cart + login — pinned far right because .navfind is the row's only flex:1 */
 .pg-home .nav-actions{display:flex;align-items:center;gap:12px;flex:none;}
@@ -647,7 +650,9 @@
   .pg-home .stamp{display:none;}
 }
 @media (max-width:1080px){
-  .pg-home .navfind{display:none;}
+  /* the search and address boxes don't fit here, but the phone number stays */
+  .pg-home .navfind>.findbox{display:none;}
+  .pg-home .navfind{margin:0 0 0 auto;flex:none;}
 }
 @media (max-width:640px){
   .pg-home .cartbtn span,.pg-home .loginbtn span{display:none;}
@@ -664,6 +669,8 @@
   .pg-home .brand-logo{height:26px;}
   .pg-home .nav-actions{grid-column:3;grid-row:1;}
   .pg-home .fulfill{grid-column:1 / -1;grid-row:2;margin-left:0;width:100%;}
+  .pg-home .navfind{grid-column:1 / -1;grid-row:3;margin:0;justify-content:center;}
+  .pg-home .navfind .navphone{margin:0;}
   .pg-home .fpill{flex:1;justify-content:center;}
 }
 /* not enough room right of the burger for the callouts below this width */
@@ -692,6 +699,11 @@
 }
 @media (max-width:640px){
   .pg-home .showcase{--navh:118px;}
+}
+/* stacked layouts (phones, tablets, short windows): the best-sellers auto-rotate (see HomeClient), so the section is one screen, not a scroll runway */
+@media not all and (min-width:1181px) and (min-height:530px){
+  .pg-home .showcase{height:100vh;height:100svh;}
+  .pg-home .showcase-sticky{position:relative;}
 }
 
 /* ---- pinned showcase, stacked layout ----
@@ -782,3 +794,12 @@
 
 /* menu items switched off in the admin inventory page */
 .pg-home .cart-add:disabled{background:#8B93AD;color:#fff;cursor:not-allowed;}
+/* below this width the search bar is squeezed to a sliver beside the address box, so drop it */
+@media (max-width:1400px){ .pg-home .findbox-search{display:none;} }
+@media (max-width:1180px){ .pg-home .findbox-loc{display:none;} .pg-home .navphone{margin-left:auto;} }
+/* tablets: not enough width for the phone number plus the Cart/Login labels, so those go icon-only */
+@media (min-width:641px) and (max-width:900px){
+  .pg-home .nav-inner{gap:16px;}
+  .pg-home .cartbtn span,.pg-home .loginbtn span{display:none;}
+  .pg-home .cartbtn,.pg-home .loginbtn{padding:10px;}
+}

@@ -200,3 +200,6 @@
 .pg-checkout .bank-box div{display:flex;flex-wrap:wrap;gap:4px 12px;}
 .pg-checkout .bank-box div span{min-width:112px;font-weight:600;color:var(--muted);}
 .pg-checkout .bank-box small{font-weight:600;color:var(--muted);line-height:1.45;margin-top:4px;}
+
+/* dropdown of saved addresses (My Account + the navbar's Delivery address) above the address field */
+.pg-checkout .field select.addr-pick{margin-bottom:2px;}

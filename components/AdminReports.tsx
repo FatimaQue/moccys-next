@@ -30,8 +30,6 @@ const PAY_PILL: Record<string, string> = { delivered: "green", rejected: "rust" 
 
 const STATUS_LABEL = { pending: "Pending", preparing: "Preparing", ready: "Ready", out: "Out for delivery", delivered: "Delivered", rejected: "Rejected" };
 
-const fmtMins = (m: number | null) => m === null ? "—" : m < 60 ? `${m}m` : `${Math.floor(m / 60)}h ${m % 60}m`;
-const hourLabel = (h: number) => h === 0 ? "12a" : h === 12 ? "12p" : h < 12 ? `${h}a` : `${h - 12}p`;
 
 function Delta({ cur, prev }: { cur: number; prev: number }) {
   if (!prev) return null;
@@ -71,7 +69,6 @@ export default function AdminReports() {
   const r = report;
   const isToday = !!r && r.date === r.today;
   const maxDay = r ? Math.max(1, ...r.days.map((d) => d.revenue)) : 1;
-  const maxHour = r ? Math.max(1, ...r.hours.map((h) => h.orders)) : 1;
   const mains = useMemo(() => (r?.items.filter((i) => !i.addon) ?? []).filter((i) => i.name.toLowerCase().includes(itemSearch.toLowerCase())), [r, itemSearch]);
   const addonsAll = useMemo(() => r?.items.filter((i) => i.addon) ?? [], [r]);
   const addons = useMemo(() => addonsAll.filter((i) => i.name.toLowerCase().includes(itemSearch.toLowerCase())), [addonsAll, itemSearch]);
@@ -179,8 +176,6 @@ export default function AdminReports() {
             <div className="rep-card"><span>Items sold</span><b>{r.summary.itemsSold}</b><small>excluding add-ons</small></div>
             <div className="rep-card"><span>Delivered</span><b>{money(r.summary.deliveredRevenue)}</b><small>completed orders</small></div>
             <div className="rep-card"><span>Delivery fees</span><b>{money(r.summary.deliveryFees)}</b><small>included in revenue</small></div>
-            <div className="rep-card"><span>Avg prep time</span><b>{fmtMins(r.summary.avgPrepMins)}</b><small>order placed → out for delivery</small></div>
-            <div className="rep-card"><span>Avg delivery time</span><b>{fmtMins(r.summary.avgDeliveryMins)}</b><small>{r.summary.timedOrders ? `${r.summary.timedOrders} delivered orders` : "out for delivery → delivered"}</small></div>
           </div>
 
           <div className="rep-grid">
@@ -215,18 +210,6 @@ export default function AdminReports() {
           </div>
 
           <div className="table-card rep-block">
-            <div className="table-head"><h3>Busy hours · {nice(r.date)}</h3></div>
-            <div className="rep-bars rep-hours" role="img" aria-label="Orders by hour of day">
-              {r.hours.map((h) => (
-                <div key={h.hour} className="rep-bar" title={`${hourLabel(h.hour)}: ${h.orders} orders, ${money(h.revenue)}`}>
-                  <span style={{ height: `${Math.max(h.orders ? 6 : 0, (h.orders / maxHour) * 100)}%` }} />
-                  <i>{hourLabel(h.hour)}</i>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          <div className="table-card rep-block">
             <div className="table-head rep-payhead">
               <h3>Payments · {nice(r.date)}</h3>
               <div className="rep-filters">
@@ -234,9 +217,7 @@ export default function AdminReports() {
                 <select value={payMethod} onChange={(e) => setPayMethod(e.target.value)} aria-label="Filter by payment method">
                   <option value="">All methods</option>
                   <option value="cod">Cash on delivery</option>
-                  <option value="easypaisa">EasyPaisa</option>
                   <option value="safepay">Online (Safepay)</option>
-                  <option value="bank">Bank transfer</option>
                 </select>
                 <select value={payType} onChange={(e) => setPayType(e.target.value)} aria-label="Filter by order type">
                   <option value="">All types</option>

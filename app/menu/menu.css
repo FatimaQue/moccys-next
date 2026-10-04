@@ -88,8 +88,11 @@
 .pg-menu .findbox .go{flex:none;color:var(--muted-d);}
 .pg-menu .findbox-clear{flex:none;background:none;border:0;color:var(--muted-d);font-size:18px;line-height:1;cursor:pointer;padding:0 2px;}
 .pg-menu .findbox-clear:hover{color:#fff;}
-.pg-menu .findbox-search{flex:1;min-width:0;}
-.pg-menu .findbox-loc{flex:none;width:230px;}
+.pg-menu .findbox-search{flex:1;min-width:0;max-width:340px;}
+.pg-menu .navphone{flex:none;display:flex;align-items:center;gap:8px;color:#fff;font-weight:700;font-size:13.5px;letter-spacing:.2px;white-space:nowrap;text-decoration:none;}
+.pg-menu .navphone svg{width:18px;height:18px;color:#ff3b3b;}
+.pg-menu .navphone:hover span{color:var(--amber);}
+.pg-menu .findbox-loc{flex:0 1 190px;min-width:110px;margin-left:auto;}
 
 .pg-menu .nav-actions{display:flex;align-items:center;gap:12px;flex:none;}
 .pg-menu .cartbtn{
@@ -399,7 +402,9 @@
 .pg-menu .pickup-locate svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
 
 /* ============ RESPONSIVE ============ */
-@media (max-width:1080px){ .pg-menu .navfind{display:none;} }
+@media (max-width:1080px){ /* the search and address boxes don't fit here, but the phone number stays */
+  .pg-menu .navfind>.findbox{display:none;}
+  .pg-menu .navfind{margin:0 0 0 auto;flex:none;} }
 @media (max-width:1024px){
   .pg-menu .menu-layout{grid-template-columns:1fr;}
   .pg-menu .cart-panel{position:static;}
@@ -417,6 +422,8 @@
   .pg-menu .brand-logo{height:26px;}
   .pg-menu .nav-actions{grid-column:3;grid-row:1;}
   .pg-menu .fulfill{grid-column:1 / -1;grid-row:2;margin-left:0;width:100%;}
+  .pg-menu .navfind{grid-column:1 / -1;grid-row:3;margin:0;justify-content:center;}
+  .pg-menu .navfind .navphone{margin:0;}
   .pg-menu .fpill{flex:1;justify-content:center;}
   .pg-menu .cattabs-wrap{padding:10px 46px;}
   .pg-menu .item-grid{grid-template-columns:1fr;}
@@ -436,3 +443,12 @@
 /* items switched off in the admin inventory page */
 .pg-menu .item-card.sold-out .item-img{filter:grayscale(1);opacity:.55;}
 .pg-menu .item-add:disabled{background:#8B93AD;color:#fff;cursor:not-allowed;}
+/* below this width the search bar is squeezed to a sliver beside the address box, so drop it */
+@media (max-width:1400px){ .pg-menu .findbox-search{display:none;} }
+@media (max-width:1180px){ .pg-menu .findbox-loc{display:none;} .pg-menu .navphone{margin-left:auto;} }
+/* tablets: not enough width for the phone number plus the Cart/Login labels, so those go icon-only */
+@media (min-width:641px) and (max-width:900px){
+  .pg-menu .nav-inner{gap:16px;}
+  .pg-menu .cartbtn span,.pg-menu .loginbtn span{display:none;}
+  .pg-menu .cartbtn,.pg-menu .loginbtn{padding:10px;}
+}

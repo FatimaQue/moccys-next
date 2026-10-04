@@ -47,6 +47,7 @@ export async function GET() {
       dbId: o.id,
       id: o.order_no,
       status: o.status,
+      orderType: o.order_type,
       customer: o.customer_name,
       items: `${o.order_items.reduce((s, i) => s + i.qty, 0)} items`,
       total: o.total,

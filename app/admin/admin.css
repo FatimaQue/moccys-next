@@ -125,9 +125,15 @@
 .pg-admin .col[data-col="pending"]{--col-accent:var(--rust);}
 .pg-admin .col[data-col="preparing"]{--col-accent:var(--amber);}
 .pg-admin .col[data-col="ready"]{--col-accent:var(--green);}
+.pg-admin .col[data-col="pickup"]{--col-accent:var(--amber);}
 .pg-admin .col[data-col="out"]{--col-accent:var(--muted);}
 .pg-admin .col[data-col="delivered"]{--col-accent:var(--green);}
 .pg-admin .col-body{padding:12px;display:flex;flex-direction:column;gap:10px;max-height:560px;overflow-y:auto;}
+/* wide monitors: five columns across, with Delivered stacked right under Out for Delivery instead of squeezed in as a sixth */
+@media (min-width:1700px){
+  .pg-admin .board{grid-template-columns:repeat(5,minmax(0,1fr));}
+  .pg-admin .col[data-col="delivered"]{grid-column:5;grid-row:2;}
+}
 
 .pg-admin .card{
   background:var(--paper-2);border:1px solid var(--line);border-radius:9px;padding:13px 14px;
@@ -154,8 +160,9 @@
 .pg-admin .btn-accept:hover{background:#337c4d;}
 .pg-admin .btn-reject{background:transparent;color:var(--rust);border:1.5px solid rgba(179,18,43,.4)!important;}
 .pg-admin .btn-reject:hover{background:rgba(179,18,43,.08);}
-.pg-admin .btn-ready{background:transparent;color:var(--ink);border:1.5px solid var(--line)!important;width:100%;}
-.pg-admin .btn-ready:hover{border-color:var(--amber)!important;color:var(--amber);}
+.pg-admin .btn-ready{background:var(--green);color:#fff;width:100%;border:0;font:inherit;font-weight:700;font-size:11.5px;letter-spacing:.03em;padding:8px 0;border-radius:6px;cursor:pointer;text-transform:uppercase;margin-top:11px;}
+.pg-admin .card-actions .btn-ready{margin-top:0;width:auto;}   /* same solid green as Accept, so Mark Ready / Send Out stand out */
+.pg-admin .btn-ready:hover{background:#337c4d;}
 
 .pg-admin .col-empty{color:var(--muted-d);font-size:12px;text-align:center;padding:22px 10px;}
 
@@ -196,8 +203,35 @@
 .pg-admin .toast .dot{width:8px;height:8px;border-radius:50%;background:var(--green);flex:none;}
 .pg-admin .toast button{background:none;border:0;color:var(--muted-d);font-size:16px;cursor:pointer;line-height:1;}
 
+/* hamburger + drawer: only exist on phones, where the sidebar becomes a slide-in menu */
+.pg-admin .menu-btn,.pg-admin .side-close,.pg-admin .side-overlay{display:none;}
+.pg-admin .menu-btn{
+  width:38px;height:38px;flex:none;border:0;background:none;padding:0;cursor:pointer;
+  flex-direction:column;align-items:center;justify-content:center;gap:5px;
+}
+.pg-admin .menu-btn span{display:block;width:22px;height:2.5px;border-radius:2px;background:var(--ink);}
 @media (max-width:640px){
-  .pg-admin .sidebar{position:fixed;inset:0 auto 0 0;transform:translateX(-100%);z-index:50;}
+  .pg-admin .sidebar{
+    position:fixed;inset:0 auto 0 0;width:min(280px,82vw);transform:translateX(-100%);z-index:60;
+    transition:transform .28s ease;overflow-y:auto;box-shadow:none;
+  }
+  .pg-admin .sidebar.open{transform:none;box-shadow:12px 0 40px rgba(0,0,0,.35);}
+  .pg-admin .brand{position:relative;}
+  .pg-admin .side-close{
+    display:block;position:absolute;top:-6px;right:-4px;background:none;border:0;color:#fff;
+    font-size:30px;line-height:1;cursor:pointer;padding:4px 8px;
+  }
+  .pg-admin .side-overlay{
+    display:block;position:fixed;inset:0;background:rgba(5,9,28,.55);z-index:55;
+    opacity:0;pointer-events:none;transition:opacity .28s ease;
+  }
+  .pg-admin .side-overlay.open{opacity:1;pointer-events:auto;}
+  .pg-admin .menu-btn{display:flex;margin-left:-8px;}
+  .pg-admin .topbar{padding:12px 16px;gap:8px;position:sticky;top:0;z-index:40;}
+  .pg-admin .topbar h1{font-size:16px;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .pg-admin .topbar-right{gap:12px;}
+  .pg-admin .profile span{display:none;}
+  .pg-admin .content{padding:18px 14px 48px;}
   .pg-admin table{font-size:12px;}
   .pg-admin .board{grid-template-columns:1fr;}
 }
@@ -358,7 +392,7 @@
 .pg-admin .drv-form label{display:block;font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:4px;}
 .pg-admin .drv-form input{padding:9px 11px;border:1.5px solid var(--line);border-radius:8px;font:inherit;background:#fff;min-width:200px;}
 .pg-admin .drv-form input:focus{outline:0;border-color:var(--amber);}
-.pg-admin .drv-add{margin-left:auto;padding:10px 22px;border:0;border-radius:8px;background:var(--rust);color:#fff;font:inherit;font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;}
+.pg-admin .drv-add{padding:10px 22px;border:0;border-radius:8px;background:var(--rust);color:#fff;font:inherit;font-weight:800;font-size:12px;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;}
 .pg-admin .drv-add:hover{background:#8F0D22;}
 .pg-admin .drv-add:disabled{opacity:.6;cursor:default;}
 .pg-admin .drv-actions{display:flex;gap:8px;}
@@ -381,3 +415,27 @@
 .pg-admin .bell-empty{padding:22px 14px;color:var(--muted);text-align:center;}
 .pg-admin .bell-panel li.unread{background:rgba(179,18,43,.06);}
 .pg-admin .bell-panel li.unread p{font-weight:700;}
+
+/* ---------- PHONE FIXES (kept last so they win over the page-specific rules above) ---------- */
+@media (max-width:640px){
+  /* wide tables scroll sideways inside their card instead of stretching the page */
+  .pg-admin .table-card{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .pg-admin .table-card table{min-width:560px;}
+  .pg-admin .rep-scroll table{min-width:520px;}
+  .pg-admin thead th,.pg-admin tbody td{padding:10px 12px;}
+  .pg-admin .table-head{padding:14px 14px;}
+  .pg-admin .content-head{margin-bottom:14px;}
+  .pg-admin .content-head h2{font-size:19px;}
+  .pg-admin .rep-filters,.pg-admin .rep-filters input,.pg-admin .rep-filters select,
+  .pg-admin .inv-filters input,.pg-admin .drv-form input{width:100%;min-width:0;max-width:none;}
+  .pg-admin .drv-form>div,.pg-admin .drv-add{flex:1 1 100%;}
+  .pg-admin .drv-add{width:100%;}
+  .pg-admin .rep-cards{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+  .pg-admin .rep-card{padding:13px 14px;}
+  .pg-admin .rep-card b{font-size:20px;}
+  .pg-admin .rep-paytotals{padding:14px;}
+  .pg-admin .inv-grid{padding:14px;}
+  /* the notifications panel anchors to the screen edges, not to the bell */
+  .pg-admin .bell-panel{position:fixed;left:10px;right:10px;top:58px;width:auto;}
+  .pg-admin .toast{left:14px;right:14px;bottom:16px;}
+}

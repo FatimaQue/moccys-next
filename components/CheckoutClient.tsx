@@ -45,7 +45,7 @@ type CheckoutCustomer = { name: string; email: string | null; phone: string | nu
 // onlinePay: whether Safepay keys are set on the server (the option hides otherwise)
 // customer: the signed-in account (null = not logged in, so ordering is locked behind a login)
 // open: whether the kitchen is taking orders right now (the server checks again when the order is sent)
-export default function CheckoutClient({ onlinePay, customer, open }: { onlinePay: boolean; customer: CheckoutCustomer | null; open: boolean }) {
+export default function CheckoutClient({ onlinePay, customer, open, savedAddresses = [] }: { onlinePay: boolean; customer: CheckoutCustomer | null; open: boolean; savedAddresses?: { label: string; address: string }[] }) {
   const { cart, setQty, remove, clear } = useCart();
   const [orderType, setOrderType] = useState<"delivery" | "pickup">("delivery");
   const [pay, setPay] = useState<"cod" | "safepay" | "bank">("cod");
@@ -54,7 +54,13 @@ export default function CheckoutClient({ onlinePay, customer, open }: { onlinePa
   const bank = pay === "bank";
   const choose = (m: typeof pay) => setPay(m);
   const [safepayReturn] = useState(readSafepayReturn);
-  const [savedAddress] = useState(readSavedAddress);
+  const [navAddress] = useState(readSavedAddress); // the address set with the Delivery button in the navbar
+  const [address, setAddress] = useState(navAddress); // the delivery address field; the dropdown above it fills it in
+  // the account's saved addresses, plus the navbar one if it isn't already among them
+  const addressOptions = [
+    ...savedAddresses,
+    ...(navAddress && !savedAddresses.some((a) => a.address === navAddress) ? [{ label: "Delivery address", address: navAddress }] : []),
+  ];
   const [orderId, setOrderId] = useState<string | null>(() => (safepayReturn?.result === "success" ? safepayReturn.orderNo : null));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(() =>
@@ -92,8 +98,8 @@ export default function CheckoutClient({ onlinePay, customer, open }: { onlinePa
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email: val("fEmail"), name: val("fName"), mobile, orderType,
-          city: val("fCity"), address: val("fAddress"), notes: val("fNotes"),
+          email: lockEmail ? customer!.email! : val("fEmail"), name: val("fName"), mobile, orderType,
+          city: val("fCity"), address: address.trim(), notes: val("fNotes"),
           payMethod: pay, wallet,
           items: cart.map((i) => ({ name: i.name, qty: i.qty, addon: !!i.addon })),
         }),
@@ -182,7 +188,12 @@ export default function CheckoutClient({ onlinePay, customer, open }: { onlinePa
                     <div className="form-grid">
                       <div className="field full">
                         <label htmlFor="fEmail">Email<i>*</i></label>
-                        <input type="email" id="fEmail" placeholder="Enter Email" required defaultValue={customer?.email ?? ""} readOnly={lockEmail} />
+                        {lockEmail ? (
+                          // a signed-in email account always orders under its own verified email, so show exactly that (not editable, not autofillable)
+                          <input type="email" id="fEmail" required value={customer!.email!} readOnly autoComplete="off" />
+                        ) : (
+                          <input type="email" id="fEmail" placeholder="Enter Email" required defaultValue="" />
+                        )}
                       </div>
                       <div className="field">
                         <label htmlFor="fName">Full Name<i>*</i></label>
@@ -216,7 +227,19 @@ export default function CheckoutClient({ onlinePay, customer, open }: { onlinePa
                       </div>
                       <div className="field full">
                         <label htmlFor="fAddress">Address Information<i>*</i></label>
-                        <input type="text" id="fAddress" placeholder="House #, street, landmark" required={delivery} defaultValue={savedAddress} />
+                        {addressOptions.length > 0 ? (
+                          // a customer with saved addresses picks one; everyone else types it in
+                          <select
+                            id="fAddress" required={delivery} aria-label="Choose one of your saved addresses"
+                            value={String(addressOptions.findIndex((o) => o.address === address)).replace("-1", "")}
+                            onChange={(e) => { const o = addressOptions[Number(e.target.value)]; if (o) setAddress(o.address); }}
+                          >
+                            <option value="" disabled>Choose from your saved addresses</option>
+                            {addressOptions.map((o, i) => <option key={i} value={i}>{o.label} — {o.address}</option>)}
+                          </select>
+                        ) : (
+                          <input type="text" id="fAddress" placeholder="House #, street, landmark" required={delivery} value={address} onChange={(e) => setAddress(e.target.value)} />
+                        )}
                       </div>
                     </div>
 
