@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 import { CartProvider } from "@/components/CartProvider";
 import { MenuProvider } from "@/components/MenuProvider";
+import VisitTracker from "@/components/VisitTracker";
 import { getMenuState } from "@/lib/menuStore";
 
 export const metadata: Metadata = {
@@ -26,6 +27,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <body>
         <MenuProvider custom={menu.custom} unavailable={menu.unavailable}>
           <CartProvider>{children}</CartProvider>
+          <VisitTracker />
         </MenuProvider>
       </body>
     </html>

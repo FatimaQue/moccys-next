@@ -17,6 +17,8 @@ export default function PrivacyPage() {
       <h2 style={h2}>What we collect</h2>
       <p style={p}>Your mobile number (to log you in and contact you about your order), your name and delivery address (to deliver your order), and the items you order. If you log in through WhatsApp, we also receive the WhatsApp message you send us, which contains only your number and a one-time verification code.</p>
 
+      <p style={p}>We also keep a simple visit log: which pages are opened, when, on what kind of device, and your IP address, your approximate location (country and city), your browser, what you open, search for and add to your cart, and a random ID stored in your browser, so we can count visitors, improve the menu and spot misuse. If you are signed in, that visit is linked to your account.</p>
+
       <h2 style={h2}>How we use it</h2>
       <p style={p}>We use your details to sign you in, prepare and deliver your order, tell you about its status, and answer your questions. We do not sell your information and we do not use it for advertising by other companies.</p>
 

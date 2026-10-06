@@ -2,10 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CLOSED_MESSAGE } from "@/lib/hours";
 import { DELIVERY_FEE, MIN_DELIVERY_ORDER } from "@/lib/pricing";
 import { money, useCart } from "./CartProvider";
+import { trackEvent } from "@/lib/trackEvent";
 import { DELIVERY_ADDRESS_KEY } from "./Nav";
 import { LAST_ORDER_KEY } from "./TrackClient";
 
@@ -71,9 +72,15 @@ export default function CheckoutClient({ onlinePay, customer, open, savedAddress
   // payment actually went through, so a cancelled or failed payment keeps it for another try.
   useEffect(() => {
     if (safepayReturn) window.history.replaceState({}, "", "/checkout");
-    if (safepayReturn?.result === "success") clear();
+    if (safepayReturn?.result === "success") { trackEvent("order_placed", safepayReturn.orderNo ?? undefined); clear(); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // reaching checkout with something in the cart (the cart loads just after mount, hence waiting for it)
+  const startedRef = useRef(false);
+  useEffect(() => {
+    if (cart.length && !startedRef.current && !orderId) { startedRef.current = true; trackEvent("checkout_start"); }
+  }, [cart.length, orderId]);
 
   const delivery = orderType === "delivery";
   const subtotal = cart.reduce((s, i) => s + i.price * i.qty, 0);
@@ -128,6 +135,7 @@ export default function CheckoutClient({ onlinePay, customer, open, savedAddress
       }
 
       setOrderId(data.orderNo);
+      trackEvent("order_placed", data.orderNo);
       clear();
     } catch {
       setError("Network problem. Please check your connection and try again.");

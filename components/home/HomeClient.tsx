@@ -266,7 +266,7 @@ export default function HomeClient() {
       // looping endlessly. Touching an item (or a dot) stops the rotation so the user can add it to the cart;
       // it starts again after a stretch of inactivity.
       mq.add("not all and (min-width: 1181px) and (min-height: 530px)", () => {
-        const AUTO_MS = 5000;
+        const AUTO_MS = 4000;
         const RESUME_MS = 15000;
         let cur = 0;
         let visible = false;

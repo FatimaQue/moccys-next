@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
 import { ADDONS } from "@/data/addons";
 import type { MenuItem, Option } from "@/data/menu";
+import { trackEvent } from "@/lib/trackEvent";
 import { money, useCart } from "./CartProvider";
 import { useMenu } from "./MenuProvider";
 import "./ItemModal.css";
@@ -23,6 +24,8 @@ export default function ItemModal({ item, onClose, onAdded }: { item: MenuItem; 
 
   const opt = opts[optIdx];
   const unit = opt.price + picked.reduce((s, n) => s + addonByName[n].price, 0);
+
+  useEffect(() => { trackEvent("view_item", item.name); }, [item.name]); // the visitor opened this item
 
   useEffect(() => {
     document.body.classList.add("mnav-lock");

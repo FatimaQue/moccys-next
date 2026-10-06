@@ -1,6 +1,7 @@
 "use client";
 
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from "react";
+import { trackEvent } from "@/lib/trackEvent";
 
 export type CartLine = {
   name: string;
@@ -49,6 +50,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   }, [cart, loaded]);
 
   const add = useCallback((line: CartLine) => {
+    if (!line.addon) trackEvent("add_to_cart", line.name);
     setCart((prev) => {
       const i = prev.findIndex((c) => c.name === line.name && !!c.addon === !!line.addon);
       if (i === -1) return [...prev, line];

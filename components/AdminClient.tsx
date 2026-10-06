@@ -7,6 +7,7 @@ import { supabaseBrowser } from "@/lib/supabase/browser";
 import AdminDrivers, { type DriverInfo } from "./AdminDrivers";
 import AdminInventory from "./AdminInventory";
 import AdminReports from "./AdminReports";
+import AdminUsers from "./AdminUsers";
 
 type Phase = "pending" | "preparing" | "ready" | "out" | "delivered";
 type Status = Phase | "rejected";
@@ -75,7 +76,7 @@ const PILL: Record<Status, [string, string]> = {
 };
 
 export default function AdminClient() {
-  const [page, setPage] = useState<"dashboard" | "orders" | "reports" | "inventory" | "drivers">("dashboard");
+  const [page, setPage] = useState<"dashboard" | "orders" | "reports" | "inventory" | "drivers" | "users">("dashboard");
   const [menuOpen, setMenuOpen] = useState(false); // the sidebar drawer on phones
   const router = useRouter();
   const [all, setAll] = useState<Order[]>([]);
@@ -271,6 +272,10 @@ export default function AdminClient() {
               <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg>
               Riders
             </a>
+            <a className={"navlink" + (page === "users" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); setPage("users"); }}>
+              <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" /><path d="M2 20c0-3.6 3.1-6 7-6s7 2.4 7 6" /><path d="M16 4.6a3.5 3.5 0 010 6.8" /><path d="M18 14.4c2.4.8 4 2.6 4 5.6" /></svg>
+              Users
+            </a>
           </nav>
         </aside>
 
@@ -279,7 +284,7 @@ export default function AdminClient() {
             <button className="menu-btn" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
               <span></span><span></span><span></span>
             </button>
-            <h1>{page === "dashboard" ? "Dashboard — Live" : page === "reports" ? "Reports" : page === "inventory" ? "Inventory" : page === "drivers" ? "Riders" : "Orders"}</h1>
+            <h1>{page === "dashboard" ? "Dashboard — Live" : page === "reports" ? "Reports" : page === "inventory" ? "Inventory" : page === "drivers" ? "Riders" : page === "users" ? "Users" : "Orders"}</h1>
             <div className="topbar-right">
               <div className="bell-wrap">
                 <button className="bell" aria-label={unread ? `${unread} unread notifications` : "Notifications"} aria-expanded={bellOpen} onClick={openBell}>
@@ -329,6 +334,8 @@ export default function AdminClient() {
               <AdminDrivers drivers={drivers} onChange={loadDrivers} />
             ) : page === "reports" ? (
               <AdminReports />
+            ) : page === "users" ? (
+              <AdminUsers />
             ) : page === "dashboard" ? (
               <section className="page">
                 <div className="content-head">
