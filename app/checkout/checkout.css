@@ -203,3 +203,9 @@
 
 /* dropdown of saved addresses (My Account + the navbar's Delivery address) above the address field */
 .pg-checkout .field select.addr-pick{margin-bottom:2px;}
+.pg-checkout .addr-combo{position:relative;}
+.pg-checkout .addr-arrow{position:absolute;right:0;top:0;bottom:0;width:40px;background:none;border:0;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+.pg-checkout .addr-arrow svg{width:16px;height:16px;fill:none;stroke:#5A6485;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;}
+.pg-checkout .addr-list{position:absolute;left:0;right:0;top:calc(100% + 4px);z-index:20;margin:0;padding:4px;list-style:none;background:#fff;border:1.5px solid rgba(10,18,48,.12);border-radius:7px;box-shadow:0 8px 24px rgba(10,18,48,.12);max-height:220px;overflow:auto;}
+.pg-checkout .addr-list li{padding:10px 12px;font-size:13.5px;border-radius:5px;cursor:pointer;}
+.pg-checkout .addr-list li:hover,.pg-checkout .addr-list li[aria-selected="true"]{background:var(--paper);}

@@ -62,6 +62,14 @@ export default function CheckoutClient({ onlinePay, customer, open, savedAddress
     ...savedAddresses,
     ...(navAddress && !savedAddresses.some((a) => a.address === navAddress) ? [{ label: "Delivery address", address: navAddress }] : []),
   ];
+  const [addrOpen, setAddrOpen] = useState(false);
+  const comboRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!addrOpen) return;
+    const close = (e: MouseEvent) => { if (!comboRef.current?.contains(e.target as Node)) setAddrOpen(false); };
+    document.addEventListener("mousedown", close);
+    return () => document.removeEventListener("mousedown", close);
+  }, [addrOpen]);
   const [orderId, setOrderId] = useState<string | null>(() => (safepayReturn?.result === "success" ? safepayReturn.orderNo : null));
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(() =>
@@ -235,19 +243,33 @@ export default function CheckoutClient({ onlinePay, customer, open, savedAddress
                       </div>
                       <div className="field full">
                         <label htmlFor="fAddress">Address Information<i>*</i></label>
-                        {addressOptions.length > 0 ? (
-                          // a customer with saved addresses picks one; everyone else types it in
-                          <select
-                            id="fAddress" required={delivery} aria-label="Choose one of your saved addresses"
-                            value={String(addressOptions.findIndex((o) => o.address === address)).replace("-1", "")}
-                            onChange={(e) => { const o = addressOptions[Number(e.target.value)]; if (o) setAddress(o.address); }}
-                          >
-                            <option value="" disabled>Choose from your saved addresses</option>
-                            {addressOptions.map((o, i) => <option key={i} value={i}>{o.label} — {o.address}</option>)}
-                          </select>
-                        ) : (
-                          <input type="text" id="fAddress" placeholder="House #, street, landmark" required={delivery} value={address} onChange={(e) => setAddress(e.target.value)} />
-                        )}
+                        {/* typeable field; with saved addresses it opens a list on click/arrow to pick from */}
+                        <div className="addr-combo" ref={comboRef}>
+                          <input
+                            type="text" id="fAddress" placeholder="House #, street, landmark" required={delivery}
+                            autoComplete="street-address" value={address}
+                            style={addressOptions.length > 0 ? { paddingRight: 38 } : undefined}
+                            onChange={(e) => setAddress(e.target.value)}
+                            onClick={() => addressOptions.length > 0 && setAddrOpen(true)}
+                            onKeyDown={(e) => { if (e.key === "Escape") setAddrOpen(false); }}
+                          />
+                          {addressOptions.length > 0 && (
+                            <>
+                              <button type="button" className="addr-arrow" aria-label="Show saved addresses" aria-expanded={addrOpen} onClick={() => setAddrOpen((o) => !o)}>
+                                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                              </button>
+                              {addrOpen && (
+                                <ul className="addr-list" role="listbox">
+                                  {addressOptions.map((o, i) => (
+                                    <li key={i} role="option" aria-selected={o.address === address} onMouseDown={(e) => { e.preventDefault(); setAddress(o.address); setAddrOpen(false); }}>
+                                      <b>{o.label}</b> — {o.address}
+                                    </li>
+                                  ))}
+                                </ul>
+                              )}
+                            </>
+                          )}
+                        </div>
                       </div>
                     </div>
 

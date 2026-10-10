@@ -82,6 +82,11 @@ export default function AdminClient() {
   const [all, setAll] = useState<Order[]>([]);
   const [orderSearch, setOrderSearch] = useState("");
   const [loaded, setLoaded] = useState(false);
+  // the Orders table pages through the server 20 at a time (cursor = id of the last row shown)
+  const [rows, setRows] = useState<Order[]>([]);
+  const [nextCursor, setNextCursor] = useState<number | null>(null);
+  const [rowsState, setRowsState] = useState<"loading" | "ready" | "error">("loading");
+  const [loadingMore, setLoadingMore] = useState(false);
   const [drivers, setDrivers] = useState<Driver[]>([]);
   const [pick, setPick] = useState<Record<number, string>>({}); // driver chosen per order before "Send Out"
   // moves the admin just made that the server may not have caught up with yet (a poll already in flight can return the old status)
@@ -235,11 +240,61 @@ export default function AdminClient() {
 
   const isNew = (o: Order) => o.status === "pending" && now - new Date(o.createdAt).getTime() < NEW_MINUTES * 60_000;
 
-  const filteredOrders = useMemo(() => {
+  const fetchRows = useCallback(async (q: string, cursor: number | null) => {
+    const qs = new URLSearchParams({ limit: "20" });
+    if (cursor) qs.set("cursor", String(cursor));
+    if (q) qs.set("q", q);
+    const res = await fetch(`/api/admin/orders?${qs}`, { cache: "no-store" });
+    if (res.status === 401) { router.replace("/admin/login"); throw new Error("unauthorized"); }
+    if (!res.ok) throw new Error();
+    return (await res.json()) as { orders: Order[]; nextCursor: number | null };
+  }, [router]);
+
+  // first page whenever the Orders page opens or the search changes (debounced while typing)
+  useEffect(() => {
+    if (page !== "orders") return;
+    let stale = false;
+    const t = setTimeout(() => {
+      setRowsState((st) => (st === "ready" ? st : "loading")); // keep showing the current rows while a search runs
+      fetchRows(orderSearch.trim(), null)
+        .then((d) => { if (stale) return; setRows(d.orders); setNextCursor(d.nextCursor); setRowsState("ready"); })
+        .catch(() => { if (!stale) setRowsState("error"); });
+    }, orderSearch ? 200 : 0);
+    return () => { stale = true; clearTimeout(t); };
+  }, [page, orderSearch, fetchRows]);
+
+  const loadMore = async () => {
+    if (!nextCursor || loadingMore) return;
+    setLoadingMore(true);
+    try {
+      const d = await fetchRows(orderSearch.trim(), nextCursor);
+      setRows((prev) => [...prev, ...d.orders.filter((o) => !prev.some((p) => p.dbId === o.dbId))]);
+      setNextCursor(d.nextCursor);
+    } catch { showToast("Couldn't load more orders. Please try again."); }
+    finally { setLoadingMore(false); }
+  };
+
+  // scrolling to the bottom of the table loads the next 20 on its own
+  const sentinelRef = useRef<HTMLDivElement>(null);
+  const loadMoreRef = useRef(loadMore);
+  useEffect(() => { loadMoreRef.current = loadMore; });
+  useEffect(() => {
+    const el = sentinelRef.current;
+    if (!el || !nextCursor || rowsState !== "ready") return;
+    const io = new IntersectionObserver((entries) => { if (entries[0].isIntersecting) loadMoreRef.current(); }, { rootMargin: "300px" });
+    io.observe(el);
+    return () => io.disconnect();
+  }, [nextCursor, rowsState, rows.length]);
+
+  // rows keep their page, but statuses/riders follow the live poll so the table doesn't go stale
+  const liveRows = useMemo(() => {
+    const live = new Map(all.map((o) => [o.dbId, o]));
+    // typing filters what's already loaded right away; the server search then fills in older matches
     const q = orderSearch.trim().toLowerCase();
-    if (!q) return all;
-    return all.filter((o) => o.id.toLowerCase().includes(q) || o.customer.toLowerCase().includes(q));
-  }, [all, orderSearch]);
+    return rows
+      .filter((o) => !q || o.id.toLowerCase().includes(q) || o.customer.toLowerCase().includes(q))
+      .map((o) => { const l = live.get(o.dbId); return l ? { ...o, status: l.status, driver: l.driver } : o; });
+  }, [rows, all, orderSearch]);
 
   return (
     <>
@@ -417,11 +472,9 @@ export default function AdminClient() {
                   <table>
                     <thead><tr><th>Order ID</th><th>Customer</th><th>Address</th><th>Amount</th><th>Rider</th><th>Live Status</th></tr></thead>
                     <tbody>
-                      {all.length === 0 ? (
-                        <tr><td colSpan={6} className="col-empty">{!loaded ? "Loading orders…" : loadError ?? "No orders yet"}</td></tr>
-                      ) : filteredOrders.length === 0 ? (
-                        <tr><td colSpan={6} className="col-empty">No orders match your search</td></tr>
-                      ) : filteredOrders.map((o) => (
+                      {liveRows.length === 0 ? (
+                        <tr><td colSpan={6} className="col-empty">{rowsState === "loading" ? "Loading orders…" : rowsState === "error" ? "Couldn't load orders." : orderSearch.trim() ? "No orders match your search" : "No orders yet"}</td></tr>
+                      ) : liveRows.map((o) => (
                         <tr key={o.dbId}>
                           <td>{o.id}</td><td>{o.customer}</td><td>{o.address}</td><td className="amount">{money(o.total)}</td>
                           <td>{o.driver ?? "—"}</td>
@@ -430,6 +483,7 @@ export default function AdminClient() {
                       ))}
                     </tbody>
                   </table>
+                  {nextCursor && <div ref={sentinelRef} style={{ textAlign: "center", padding: 16, fontSize: 13 }} className="col-empty">Loading more…</div>}
                 </div>
               </section>
             )}

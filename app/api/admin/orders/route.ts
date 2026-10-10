@@ -15,22 +15,36 @@ type Row = {
   order_items: { name: string; price: number; qty: number; is_addon: boolean }[];
 };
 
-export async function GET() {
+// Without params this returns the newest 200 orders (what the live board polls). With ?limit=20 it pages
+// instead: &cursor=<id of the last order already shown> asks for the next, older page, and &q= searches
+// order number / customer name. Ids only ever grow, so "id below the cursor" is a stable cursor.
+export async function GET(req: Request) {
   if (!(await getAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { data, error } = await supabaseAdmin()
+  const params = new URL(req.url).searchParams;
+  const paged = params.has("limit");
+  const limit = paged ? Math.min(Math.max(Number(params.get("limit")) || 20, 1), 100) : 200;
+  const cursor = Number(params.get("cursor"));
+  const q = (params.get("q") ?? "").replace(/[,()%*\\]/g, " ").trim();
+
+  let query = supabaseAdmin()
     .from("orders")
     .select("id, order_no, status, order_type, customer_name, mobile, city, address, notes, pay_method, easypaisa_number, payment_status, total, created_at, out_at, delivered_at, driver:profiles!driver_id(name), order_items(name, price, qty, is_addon)")
     // an unpaid/abandoned online (Safepay, or older JazzCash) checkout never reached the kitchen, so it shouldn't show up here
     .or("pay_method.not.in.(safepay,jazzcash),payment_status.eq.paid")
-    .order("created_at", { ascending: false })
-    .limit(200)
-    .returns<Row[]>();
+    .order(paged ? "id" : "created_at", { ascending: false });
+  if (paged && Number.isFinite(cursor) && cursor > 0) query = query.lt("id", cursor);
+  if (paged && q) query = query.or(`order_no.ilike.%${q}%,customer_name.ilike.%${q}%`);
+  // one extra row tells us whether there is another page
+  const { data: rows, error } = await query.limit(paged ? limit + 1 : limit).returns<Row[]>();
   if (error) {
     console.error("admin orders fetch failed", error);
     return NextResponse.json({ error: "Could not load orders" }, { status: 500 });
   }
 
+  const hasMore = paged && rows.length > limit;
+  const data = hasMore ? rows.slice(0, limit) : rows;
+  const nextCursor = hasMore ? data[data.length - 1].id : null;
   const custom = customCatalog((await getMenuState()).custom);
   const orders = data.map((o) => {
     const main = o.order_items.filter((i) => !i.is_addon);
@@ -61,5 +75,5 @@ export async function GET() {
       details,
     };
   });
-  return NextResponse.json({ orders });
+  return NextResponse.json(paged ? { orders, nextCursor } : { orders });
 }
