@@ -7,7 +7,7 @@ export type StaffRole = "admin" | "driver"; // "driver" is shown to users as "Ri
 
 export const MAX_ATTEMPTS = 5;
 export const LOCK_MINUTES = 15;
-export const MIN_PASSWORD = 4;
+export const MIN_PASSWORD = 8;
 export const MAX_PASSWORD = 40;
 export const MIN_USERNAME = 3;
 export const MAX_USERNAME = 20;

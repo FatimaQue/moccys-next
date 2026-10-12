@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clientIp, tooMany } from "@/lib/rateLimit";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -24,6 +25,7 @@ export async function POST(req: Request) {
   try {
     const ua = req.headers.get("user-agent") ?? "";
     if (!ua || BOT.test(ua)) return done();
+    if (tooMany(`visit:${clientIp(req)}`, 60, 60_000)) return done(); // a real visitor opens a few pages a minute, not dozens
 
     const b = (await req.json().catch(() => ({}))) as { vid?: unknown; path?: unknown; ref?: unknown; utm?: { source?: unknown; medium?: unknown; campaign?: unknown } };
     const vid = typeof b.vid === "string" ? b.vid : "";

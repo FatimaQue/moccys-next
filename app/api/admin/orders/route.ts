@@ -25,7 +25,8 @@ export async function GET(req: Request) {
   const paged = params.has("limit");
   const limit = paged ? Math.min(Math.max(Number(params.get("limit")) || 20, 1), 100) : 200;
   const cursor = Number(params.get("cursor"));
-  const q = (params.get("q") ?? "").replace(/[,()%*\\]/g, " ").trim();
+  // characters that mean something inside a PostgREST filter (or an ilike pattern) are dropped, quotes included
+  const q = (params.get("q") ?? "").replace(/[,()%*\\"'`_:]/g, " ").replace(/\s+/g, " ").trim().slice(0, 60);
 
   let query = supabaseAdmin()
     .from("orders")
@@ -54,7 +55,7 @@ export async function GET(req: Request) {
       ...o.order_items.map((i) => `${i.qty}x ${i.name}${i.is_addon ? " (add-on)" : ""}`),
       `${o.order_type === "delivery" ? "Delivery" : "Pick-up"} · ${o.mobile}`,
       ...(o.order_type === "delivery" ? [[o.address, o.city].filter(Boolean).join(", ")] : []),
-      o.pay_method === "easypaisa" ? `EasyPaisa · ${o.easypaisa_number}` : o.pay_method === "safepay" ? "Paid online · Safepay" : o.pay_method === "jazzcash" ? "JazzCash · Paid" : o.pay_method === "bank" ? `Bank transfer · ${o.easypaisa_number}` : "Cash on delivery",
+      o.pay_method === "easypaisa" ? `EasyPaisa · ${o.easypaisa_number}` : o.pay_method === "safepay" ? "Paid online · Safepay" : o.pay_method === "jazzcash" ? "JazzCash · Paid" : o.pay_method === "bank" ? `Bank transfer · ${o.easypaisa_number} · ${o.payment_status === "paid" ? "payment confirmed" : "NOT confirmed yet"}` : "Cash on delivery",
       ...(o.notes ? [`"${o.notes}"`] : []),
     ];
     return {
@@ -62,6 +63,8 @@ export async function GET(req: Request) {
       id: o.order_no,
       status: o.status,
       orderType: o.order_type,
+      // a bank transfer is only a reference the customer typed in until the admin has seen the money arrive
+      awaitingPayment: o.pay_method === "bank" && o.payment_status !== "paid",
       customer: o.customer_name,
       items: `${o.order_items.reduce((s, i) => s + i.qty, 0)} items`,
       total: o.total,

@@ -14,7 +14,7 @@ type Status = Phase | "rejected";
 // one order as /api/admin/orders returns it
 type Order = {
   dbId: number; id: string; status: Status; orderType: "delivery" | "pickup"; customer: string; items: string; total: number; address: string;
-  createdAt: string; name: string; img?: string; details: string[];
+  createdAt: string; name: string; img?: string; details: string[]; awaitingPayment?: boolean;
   driver: string | null; deliveredAt: string | null;
 };
 type Driver = DriverInfo;
@@ -215,7 +215,21 @@ export default function AdminClient() {
     const res = await fetch(`/api/admin/orders/${dbId}`, {
       method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ status, driverId }),
     }).catch(() => null);
-    if (!res?.ok) { pendingMoves.current.delete(dbId); showToast("Couldn't update that order. Please try again."); }
+    if (!res?.ok) {
+      pendingMoves.current.delete(dbId);
+      const why = (await res?.json().catch(() => null))?.error as string | undefined;
+      showToast(why ?? "Couldn't update that order. Please try again.");
+    }
+    load();
+  };
+
+  // bank transfers: the admin has seen the money arrive, so the rider no longer collects it at the door
+  const confirmPayment = async (dbId: number) => {
+    setAll((prev) => prev.map((o) => (o.dbId === dbId ? { ...o, awaitingPayment: false } : o)));
+    const res = await fetch(`/api/admin/orders/${dbId}`, {
+      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "confirm-payment" }),
+    }).catch(() => null);
+    if (!res?.ok) showToast("Couldn't confirm that payment. Please try again.");
     load();
   };
 
@@ -423,6 +437,11 @@ export default function AdminClient() {
                             </div>
                             <div className="card-cust">{o.customer}</div>
                             <ul className="order-details">{o.details?.map((d) => <li key={d}>{d}</li>)}</ul>
+                            {o.awaitingPayment && t.phase !== "delivered" && (
+                              <button className="btn-reject" style={{ width: "100%", marginBottom: 8 }} onClick={() => confirmPayment(o.dbId)}>
+                                Bank transfer not confirmed. Tap once the money has arrived
+                              </button>
+                            )}
 
                             {t.phase === "delivered" ? (
                               <div className="card-status">{o.orderType === "pickup" ? "Picked up" : `Delivered by ${o.driver ?? "—"}`} · {timeOf(o.deliveredAt)}</div>

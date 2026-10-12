@@ -19,18 +19,12 @@ const BANK = {
   iban: process.env.NEXT_PUBLIC_BANK_IBAN || "",
 };
 
-// Reads how the trip to Safepay's hosted page ended from the return URL, once, before first
-// render — a plain value used to seed initial state, not an effect, so there's no setState-after-mount involved.
-function readSafepayReturn(): { result: "success" | "failed" | "cancelled"; orderNo: string | null } | null {
-  if (typeof window === "undefined") return null;
-  const params = new URLSearchParams(window.location.search);
-  const result = params.get("safepay");
-  if (result === "success" || result === "failed" || result === "cancelled") return { result, orderNo: params.get("order") };
-  return null;
-}
+// How the trip to Safepay's hosted page ended. The checkout page works this out on the server (a "success" only
+// counts when that order really is paid and belongs to this account), so the URL alone can't fake it.
+type SafepayReturn = { result: "success" | "failed" | "cancelled"; orderNo: string | null } | null;
 
 const SAFEPAY_ERRORS = {
-  failed: "Your online payment didn't go through. You can try again or choose another payment method.",
+  failed: "We couldn't confirm your online payment. If money was taken from your account, please don't pay again: check Track Order in a few minutes. Otherwise you can try again or choose another payment method.",
   cancelled: "You cancelled the online payment. Your cart is still here — try again or choose another payment method.",
 };
 
@@ -46,15 +40,14 @@ type CheckoutCustomer = { name: string; email: string | null; phone: string | nu
 // onlinePay: whether Safepay keys are set on the server (the option hides otherwise)
 // customer: the signed-in account (null = not logged in, so ordering is locked behind a login)
 // open: whether the kitchen is taking orders right now (the server checks again when the order is sent)
-export default function CheckoutClient({ onlinePay, customer, open, savedAddresses = [] }: { onlinePay: boolean; customer: CheckoutCustomer | null; open: boolean; savedAddresses?: { label: string; address: string }[] }) {
-  const { cart, setQty, remove, clear } = useCart();
+export default function CheckoutClient({ onlinePay, customer, open, savedAddresses = [], safepayReturn }: { onlinePay: boolean; customer: CheckoutCustomer | null; open: boolean; savedAddresses?: { label: string; address: string }[]; safepayReturn: SafepayReturn }) {
+  const { cart, setQty, remove, clear, reprice } = useCart();
   const [orderType, setOrderType] = useState<"delivery" | "pickup">("delivery");
   const [pay, setPay] = useState<"cod" | "safepay" | "bank">("cod");
   const [mobile, setMobile] = useState(customer?.phone ?? "");
   const [wallet, setWallet] = useState(""); // the bank account/reference, for a bank transfer
   const bank = pay === "bank";
   const choose = (m: typeof pay) => setPay(m);
-  const [safepayReturn] = useState(readSafepayReturn);
   const [navAddress] = useState(readSavedAddress); // the address set with the Delivery button in the navbar
   const [address, setAddress] = useState(navAddress); // the delivery address field; the dropdown above it fills it in
   // the account's saved addresses, plus the navbar one if it isn't already among them
@@ -72,6 +65,7 @@ export default function CheckoutClient({ onlinePay, customer, open, savedAddress
   }, [addrOpen]);
   const [orderId, setOrderId] = useState<string | null>(() => (safepayReturn?.result === "success" ? safepayReturn.orderNo : null));
   const [submitting, setSubmitting] = useState(false);
+  const retryRef = useRef<{ sig: string; orderNo: string } | null>(null); // the unpaid online order a retry should reuse
   const [error, setError] = useState<string | null>(() =>
     safepayReturn && safepayReturn.result !== "success" ? SAFEPAY_ERRORS[safepayReturn.result] : null
   );
@@ -79,7 +73,7 @@ export default function CheckoutClient({ onlinePay, customer, open, savedAddress
   // Clean the return-trip query params out of the URL bar; the cart is only emptied once the
   // payment actually went through, so a cancelled or failed payment keeps it for another try.
   useEffect(() => {
-    if (safepayReturn) window.history.replaceState({}, "", "/checkout");
+    if (window.location.search) window.history.replaceState({}, "", "/checkout");
     if (safepayReturn?.result === "success") { trackEvent("order_placed", safepayReturn.orderNo ?? undefined); clear(); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -109,21 +103,34 @@ export default function CheckoutClient({ onlinePay, customer, open, savedAddress
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch("/api/orders", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: lockEmail ? customer!.email! : val("fEmail"), name: val("fName"), mobile, orderType,
-          city: val("fCity"), address: address.trim(), notes: val("fNotes"),
-          payMethod: pay, wallet,
-          items: cart.map((i) => ({ name: i.name, qty: i.qty, addon: !!i.addon })),
-        }),
-      });
-      const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        setError(data.error || "Could not place your order. Please try again.");
-        return;
+      const payload = {
+        email: lockEmail ? customer!.email! : val("fEmail"), name: val("fName"), mobile, orderType,
+        city: val("fCity"), address: address.trim(), notes: val("fNotes"),
+        payMethod: pay, wallet, expectedSubtotal: subtotal,
+        items: cart.map((i) => ({ name: i.name, qty: i.qty, addon: !!i.addon })),
+      };
+      // A failed or cancelled online payment leaves its order behind, unpaid. Trying again with the very same details
+      // goes back to that order instead of creating another one (which could end up paid twice).
+      const sig = JSON.stringify(payload);
+      let orderNo: string;
+      if (pay === "safepay" && retryRef.current?.sig === sig) {
+        orderNo = retryRef.current.orderNo;
+      } else {
+        const res = await fetch("/api/orders", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          if (res.status === 409 && data.prices) reprice(data.prices); // the menu prices moved: show the new ones before they confirm
+          setError(data.error || "Could not place your order. Please try again.");
+          return;
+        }
+        orderNo = data.orderNo;
+        retryRef.current = pay === "safepay" ? { sig, orderNo } : null;
       }
+      const data = { orderNo };
       // hand the order to the tracking page so it opens straight to it
       try { localStorage.setItem(LAST_ORDER_KEY, JSON.stringify({ orderNo: data.orderNo, mobile })); } catch { /* storage blocked: they can type it in */ }
 

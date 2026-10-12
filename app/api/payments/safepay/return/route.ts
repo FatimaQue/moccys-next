@@ -5,7 +5,8 @@ import { confirmPayment } from "@/lib/safepay";
 // ?order_id=&tracker= (a GET; POST handled too). Nothing in the redirect is trusted — the
 // tracker is looked up with Safepay itself before the order is marked paid.
 async function handle(req: Request) {
-  const site = process.env.NEXT_PUBLIC_SITE_URL ?? "";
+  // redirects need an absolute address; fall back to the one this request came in on if the site URL isn't configured
+  const site = process.env.NEXT_PUBLIC_SITE_URL || new URL(req.url).origin;
   const goTo = (path: string) => NextResponse.redirect(`${site}${path}`, 303);
 
   const fields = new URL(req.url).searchParams;

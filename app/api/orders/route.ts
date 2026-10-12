@@ -9,7 +9,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 
 type Body = {
   email?: string; name?: string; mobile?: string; orderType?: string; city?: string; address?: string;
-  notes?: string; payMethod?: string; wallet?: string;
+  notes?: string; payMethod?: string; wallet?: string; expectedSubtotal?: number;
   items?: { name?: string; qty?: number; addon?: boolean }[];
 };
 
@@ -69,14 +69,22 @@ export async function POST(req: Request) {
   for (const l of lines) {
     const qty = Number(l.qty);
     const entry = l.addon ? addonCatalog.get(String(l.name)) : (menuCatalog.get(String(l.name)) ?? custom.get(String(l.name)));
-    if (!entry || !Number.isInteger(qty) || qty < 1 || qty > 50) {
-      return bad(`"${l.name}" is no longer available. Please remove it from your cart.`);
-    }
+    if (!entry) return bad(`"${l.name}" is no longer available. Please remove it from your cart.`);
+    if (!Number.isInteger(qty) || qty < 1) return bad(`Please check the quantity of "${l.name}".`);
+    if (qty > 50) return bad(`You can order at most 50 of "${l.name}". Please lower the quantity.`);
     if (off.has(entry.parent)) return bad(`"${entry.parent}" is currently unavailable. Please remove it from your cart.`);
     items.push({ name: String(l.name), price: entry.price, qty, is_addon: !!l.addon });
   }
 
   const subtotal = items.reduce((s, i) => s + i.price * i.qty, 0);
+  // The cart lives in the browser, so its prices can be out of date. If the menu price changed since the customer
+  // added these items, don't charge a different total than the one they saw: send the current prices back instead.
+  const seen = Number(b.expectedSubtotal);
+  if (Number.isFinite(seen) && seen !== subtotal) {
+    const prices: Record<string, number> = {};
+    for (const i of items) prices[`${i.is_addon ? "a" : "i"}:${i.name}`] = i.price;
+    return NextResponse.json({ error: "Some prices have changed since you added them. Your cart has been updated: please review the total and place your order again.", prices }, { status: 409 });
+  }
   if (delivery && subtotal < MIN_DELIVERY_ORDER) {
     return bad(`Delivery orders start at Rs. ${MIN_DELIVERY_ORDER.toLocaleString("en-US")} (yours is Rs. ${subtotal.toLocaleString("en-US")}). Add a little more, or choose pick-up.`);
   }
@@ -84,11 +92,23 @@ export async function POST(req: Request) {
   const db = supabaseAdmin();
 
   const [col, who] = customer.email ? (["email", email] as const) : (["mobile", mobile] as const);
+  // An online checkout that was never paid (cancelled, failed, abandoned) isn't an order the kitchen ever saw, so it
+  // doesn't use up the customer's allowance — otherwise three failed payments would block them from ordering at all.
+  // Those get their own, looser cap so they still can't be used to flood the table.
   for (const { minutes, max } of LIMITS) {
     const { count } = await db.from("orders").select("id", { count: "exact", head: true })
-      .eq(col, who).gte("created_at", new Date(Date.now() - minutes * 60_000).toISOString());
+      .eq(col, who).gte("created_at", new Date(Date.now() - minutes * 60_000).toISOString())
+      .or("pay_method.neq.safepay,payment_status.eq.paid");
     if ((count ?? 0) >= max) {
       return NextResponse.json({ error: "You've placed several orders in a short time. Please wait a few minutes and try again." }, { status: 429 });
+    }
+  }
+  if (payMethod === "safepay") {
+    const { count } = await db.from("orders").select("id", { count: "exact", head: true })
+      .eq(col, who).eq("pay_method", "safepay").neq("payment_status", "paid")
+      .gte("created_at", new Date(Date.now() - 10 * 60_000).toISOString());
+    if ((count ?? 0) >= 10) {
+      return NextResponse.json({ error: "Too many unfinished online payments. Please wait a few minutes and try again." }, { status: 429 });
     }
   }
 

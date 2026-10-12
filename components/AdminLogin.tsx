@@ -88,7 +88,7 @@ export default function AdminLogin() {
 
         <label htmlFor="sPass">{firstTime ? "Choose a password" : "Password"}</label>
         <input
-          id="sPass" type="password" minLength={firstTime ? 4 : undefined} maxLength={40}
+          id="sPass" type="password" minLength={firstTime ? 8 : undefined} maxLength={40}
           autoComplete={firstTime ? "new-password" : "current-password"} required
           value={password} onChange={(e) => setPassword(e.target.value)}
         />
@@ -96,11 +96,12 @@ export default function AdminLogin() {
         {firstTime && (
           <>
             <label htmlFor="sPass2">Retype password</label>
-            <input id="sPass2" type="password" minLength={4} maxLength={40} autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
+            <input id="sPass2" type="password" minLength={8} maxLength={40} autoComplete="new-password" required value={confirm} onChange={(e) => setConfirm(e.target.value)} />
           </>
         )}
 
         {error && <p className="signin-err" role="alert">{error}</p>}
+        {error && !firstTime && <p style={{ fontSize: 13, margin: "8px 0 0", opacity: 0.75 }}>New here, or did the manager reset your password? Use &ldquo;First time? Set up your account&rdquo; below.</p>}
         <button type="submit" disabled={busy}>{busy ? "Please wait…" : firstTime ? "Save & sign in" : "Sign in"}</button>
 
         <button

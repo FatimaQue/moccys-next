@@ -19,7 +19,7 @@ export async function POST(req: Request) {
   const phone = normalizePhone(body.phone);
   const password = String(body.password ?? "");
   if (!phone) return NextResponse.json({ error: "Enter a valid mobile number, like 03001234567." }, { status: 400 });
-  if (!validPassword(password)) return NextResponse.json({ error: "Your password must be 4-40 characters." }, { status: 400 });
+  if (!validPassword(password)) return NextResponse.json({ error: "Your password must be 8-40 characters." }, { status: 400 });
   if (password !== body.confirm) return NextResponse.json({ error: "The two passwords don't match." }, { status: 400 });
 
   const staff = await findStaffByPhone(phone);

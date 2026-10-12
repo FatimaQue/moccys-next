@@ -69,3 +69,8 @@
 .pg-track .titems h2{font-size:12px;font-weight:800;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:10px;}
 .pg-track .titem{display:flex;justify-content:space-between;gap:16px;padding:5px 0;font-size:14px;}
 .pg-track .tlink{margin-top:22px;background:none;border:0;padding:0;font:inherit;font-weight:700;color:var(--rust);cursor:pointer;text-decoration:underline;}
+
+/* the tracker shown inside My Account's "Track Order" tab: no page chrome, sits on the account page's own background */
+.pg-track.is-embedded{min-height:0;background:transparent;font-size:inherit;}
+.pg-track.is-embedded .twrap{max-width:none;margin:0;padding:0;}
+.pg-track.is-embedded .tcard{box-shadow:none;border:1.5px solid var(--line);}

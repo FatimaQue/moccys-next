@@ -16,10 +16,9 @@ export async function POST(req: Request) {
   const staff = await findStaffByUsername(username);
   if (!staff || staff.active === false) return NextResponse.json({ error: WRONG }, { status: 401 });
 
-  // nobody has claimed this username yet — the admin added them (name + phone + username) but they
-  // haven't set a password; the sign-in page switches itself to the "set your password" step instead
-  // of showing an error
-  if (!staff.password_hash) return NextResponse.json({ firstTime: true });
+  // no password yet (new account, or the manager reset it): answer exactly like a wrong password, so this screen can't
+  // be used to find out which usernames exist. The sign-in page points those people to its "set up your account" step.
+  if (!staff.password_hash) return NextResponse.json({ error: WRONG }, { status: 401 });
 
   if (isLocked(staff)) {
     return NextResponse.json({ error: `Too many wrong tries. Please wait ${LOCK_MINUTES} minutes and try again.` }, { status: 429 });

@@ -30,9 +30,10 @@ const HINT: Record<Status, string> = {
 const stepOf = (s: Status, type: "delivery" | "pickup") =>
   ({ pending: 0, preparing: 1, ready: type === "pickup" ? 2 : 1, out: 2, delivered: 3, rejected: -1 })[s];
 
-export default function TrackClient() {
+// embedded: shown inside the My Account "Track Order" tab, so no site header or page title of its own
+export default function TrackClient({ embedded = false, initialMobile = "" }: { embedded?: boolean; initialMobile?: string }) {
   const [orderNo, setOrderNo] = useState("");
-  const [mobile, setMobile] = useState("");
+  const [mobile, setMobile] = useState(initialMobile);
   const [order, setOrder] = useState<Tracked | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -89,13 +90,15 @@ export default function TrackClient() {
 
   return (
     <>
-      <header className="tnav">
-        <Link href="/"><Image className="tlogo" src="/images/Logo-01.png" alt="McCoy's" width={160} height={32} /></Link>
-        <Link href="/menu" className="tback">Back to Menu</Link>
-      </header>
+      {!embedded && (
+        <header className="tnav">
+          <Link href="/"><Image className="tlogo" src="/images/Logo-01.png" alt="McCoy's" width={160} height={32} /></Link>
+          <Link href="/menu" className="tback">Back to Menu</Link>
+        </header>
+      )}
 
-      <main className="twrap">
-        <h1 className="tdisplay">Track your <span>order</span></h1>
+      <Wrap embedded={embedded}>
+        {!embedded && <h1 className="tdisplay">Track your <span>order</span></h1>}
 
         {order ? (
           <section className="tcard">
@@ -151,7 +154,12 @@ export default function TrackClient() {
             <button type="submit" className="tbtn" disabled={busy}>{busy ? "Looking…" : "Track order"}</button>
           </form>
         )}
-      </main>
+      </Wrap>
     </>
   );
+}
+
+// the page version is the <main> of its own page; inside the account page it's just a block of that page
+function Wrap({ embedded, children }: { embedded: boolean; children: React.ReactNode }) {
+  return embedded ? <div className="twrap">{children}</div> : <main className="twrap">{children}</main>;
 }

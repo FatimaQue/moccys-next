@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clientIp, tooMany } from "@/lib/rateLimit";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -8,6 +9,10 @@ const NOT_FOUND = "We couldn't find an order with that number and mobile. Please
 // Order numbers are short, so the mobile number used at checkout has to match too.
 // Only what the customer needs comes back: no address, email or payment numbers.
 export async function POST(req: Request) {
+  // the page re-checks every 8 seconds, so ~8 a minute is normal; this only stops someone guessing order numbers
+  if (tooMany(`track:${clientIp(req)}`, 40, 60_000)) {
+    return NextResponse.json({ error: "Too many tries. Please wait a minute and try again." }, { status: 429 });
+  }
   const body = (await req.json().catch(() => ({}))) as { orderNo?: string; mobile?: string };
   const digits = String(body.orderNo ?? "").replace(/\D/g, "");
   const mobile = String(body.mobile ?? "").trim();

@@ -8,6 +8,19 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
+// Menu photos are shown with next/image, which only loads from this site or our Supabase storage (see next.config.ts);
+// any other address would crash the menu page for every visitor.
+const STORAGE_HOST = process.env.NEXT_PUBLIC_SUPABASE_URL ? new URL(process.env.NEXT_PUBLIC_SUPABASE_URL).hostname : null;
+function okImage(src: string) {
+  if (src.startsWith("/") && !src.startsWith("//") && !src.includes("\\")) return true; // a photo that ships with the site
+  try {
+    const u = new URL(src);
+    return u.protocol === "https:" && !!STORAGE_HOST && u.hostname === STORAGE_HOST;
+  } catch {
+    return false;
+  }
+}
+
 const NO_TABLES = "The inventory tables don't exist yet. Run the inventory SQL in the Supabase SQL editor first.";
 const deny = () => NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 const fail = (error: { code?: string; message?: string }) =>
@@ -77,7 +90,9 @@ export async function POST(req: Request) {
   if (options.some((o) => !o.label || !Number.isInteger(o.price) || o.price < 1) || !Number.isInteger(price) || price < 1) {
     return NextResponse.json({ error: "Prices must be whole numbers above 0, and every size needs a name." }, { status: 400 });
   }
-  if (!String(b.img ?? "").trim()) return NextResponse.json({ error: "Please add a photo." }, { status: 400 });
+  const img = String(b.img ?? "").trim();
+  if (!img) return NextResponse.json({ error: "Please add a photo." }, { status: 400 });
+  if (!okImage(img)) return NextResponse.json({ error: "That photo address isn't allowed. Please upload the photo instead." }, { status: 400 });
 
   // names identify items everywhere (cart, orders, availability), so they must be unique across the whole menu
   const taken = new Set([...categories.flatMap((c) => c.items.flatMap((i) => [i.name, ...(i.options ?? []).map((o) => o.name)])), ...ADDONS.flatMap((g) => g.items.map((a) => a.name))]);
@@ -85,7 +100,7 @@ export async function POST(req: Request) {
 
   const { error } = await supabaseAdmin().from("menu_custom_items").insert({
     category_id: category.id, name, price, description: String(b.description ?? "").trim().slice(0, 500) || null,
-    img: String(b.img).trim(), options: options.length ? options : null,
+    img, options: options.length ? options : null,
   });
   if (error) {
     if (error.code === "23505") return NextResponse.json({ error: "An item with that name already exists." }, { status: 409 });

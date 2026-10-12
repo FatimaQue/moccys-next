@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic";
 
 type Row = {
   id: number; order_no: string; status: string; customer_name: string; mobile: string; city: string | null;
-  address: string | null; notes: string | null; pay_method: string; total: number; out_at: string | null; delivered_at: string | null;
+  address: string | null; notes: string | null; pay_method: string; payment_status: string; total: number; out_at: string | null; delivered_at: string | null;
   order_items: { name: string; qty: number; is_addon: boolean }[];
 };
 
@@ -20,7 +20,7 @@ export async function GET() {
 
   const { data, error } = await supabaseAdmin()
     .from("orders")
-    .select("id, order_no, status, customer_name, mobile, city, address, notes, pay_method, total, out_at, delivered_at, order_items(name, qty, is_addon)")
+    .select("id, order_no, status, customer_name, mobile, city, address, notes, pay_method, payment_status, total, out_at, delivered_at, order_items(name, qty, is_addon)")
     .eq("driver_id", driver.id)
     .or(`status.eq.out,and(status.eq.delivered,delivered_at.gte.${startOfDay.toISOString()})`)
     .order("out_at", { ascending: true })
@@ -40,7 +40,9 @@ export async function GET() {
     notes: o.notes,
     items: o.order_items.map((i) => `${i.qty}x ${i.name}${i.is_addon ? " (add-on)" : ""}`),
     total: o.total,
-    cash: o.pay_method === "cod", // only cash orders need money collected at the door
+    // Cash on delivery, and any order whose payment hasn't been confirmed (e.g. a bank transfer the admin never saw
+    // arrive), is collected at the door. Only a confirmed payment means "nothing to collect".
+    cash: o.pay_method === "cod" || o.payment_status !== "paid",
     deliveredAt: o.delivered_at,
   }));
   return NextResponse.json({ name: driver.name, orders });

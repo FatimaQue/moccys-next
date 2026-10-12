@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { clientIp, tooMany } from "@/lib/rateLimit";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -14,6 +15,7 @@ export async function POST(req: Request) {
   try {
     const ua = req.headers.get("user-agent") ?? "";
     if (!ua || BOT.test(ua)) return done();
+    if (tooMany(`event:${clientIp(req)}`, 120, 60_000)) return done();
 
     const b = (await req.json().catch(() => ({}))) as { vid?: unknown; kind?: unknown; label?: unknown };
     const vid = typeof b.vid === "string" ? b.vid : "";

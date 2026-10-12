@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { tooMany } from "@/lib/rateLimit";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 import { supabaseServer } from "@/lib/supabase/server";
 
@@ -10,6 +11,10 @@ export async function POST(req: Request) {
   const supabase = await supabaseServer();
   const { data: { user } } = await supabase.auth.getUser();
   if (!user || user.user_metadata?.role !== "customer") return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+  if (tooMany(`avatar:${user.id}`, 5, 10 * 60_000)) {
+    return NextResponse.json({ error: "Too many photo changes. Please wait a few minutes and try again." }, { status: 429 });
+  }
 
   const file = (await req.formData().catch(() => null))?.get("file");
   if (!(file instanceof File)) return NextResponse.json({ error: "No file uploaded." }, { status: 400 });
@@ -26,5 +31,11 @@ export async function POST(req: Request) {
     console.error("avatar upload failed", error);
     return NextResponse.json({ error: "Could not upload the photo. Please try again." }, { status: 500 });
   }
+
+  // keep only the newest photo per account, so repeated uploads can't pile up in storage
+  const { data: mine } = await storage.from(BUCKET).list("", { search: user.id, limit: 100 });
+  const old = (mine ?? []).map((f) => f.name).filter((n) => n.startsWith(`${user.id}-`) && n !== path);
+  if (old.length) await storage.from(BUCKET).remove(old).catch(() => {});
+
   return NextResponse.json({ url: storage.from(BUCKET).getPublicUrl(path).data.publicUrl });
 }

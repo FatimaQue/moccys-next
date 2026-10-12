@@ -3,20 +3,23 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import TrackClient from "./TrackClient";
 
 type Address = { label: string; address: string };
+const MAX_ADDRESSES = 10;
 type Order = { order_no: string; status: string; order_type: string; total: number; created_at: string };
-type Tab = "profile" | "orders" | "addresses";
+type Tab = "profile" | "orders" | "track" | "addresses";
 
 const TABS: { id: Tab; label: string }[] = [
   { id: "profile", label: "Edit Profile" },
   { id: "orders", label: "Order History" },
+  { id: "track", label: "Track Order" },
   { id: "addresses", label: "Saved Addresses" },
 ];
 
 export default function AccountClient({
-  phone: initialPhone, initialName, initialBirthday, initialAddresses, initialAvatarUrl,
-}: { phone: string; initialName: string; initialBirthday: string; initialAddresses: Address[]; initialAvatarUrl: string }) {
+  phone: initialPhone, phoneLocked, initialName, initialBirthday, initialAddresses, initialAvatarUrl,
+}: { phone: string; phoneLocked: boolean; initialName: string; initialBirthday: string; initialAddresses: Address[]; initialAvatarUrl: string }) {
   const router = useRouter();
   const [tab, setTab] = useState<Tab>("profile");
 
@@ -59,6 +62,8 @@ export default function AccountClient({
 
   const addAddress = async () => {
     if (!addr.trim()) return;
+    // saved addresses travel inside the login token, so the list has to stay small
+    if (addresses.length >= MAX_ADDRESSES) { setMsg(`Could not save: you can keep up to ${MAX_ADDRESSES} addresses. Remove one first.`); return; }
     const next = [...addresses, { label: label.trim() || "Home", address: addr.trim() }];
     if (await save({ addresses: next }, "Address saved.")) { setAddresses(next); setLabel(""); setAddr(""); }
   };
@@ -106,7 +111,7 @@ export default function AccountClient({
       </div>
 
       {tab === "profile" && (
-        <form className="acct-form" onSubmit={(e) => { e.preventDefault(); save({ full_name: name.trim(), phone: phone.trim(), birthday }, "Profile updated."); }}>
+        <form className="acct-form" onSubmit={(e) => { e.preventDefault(); save({ full_name: name.trim(), ...(phoneLocked ? {} : { phone: phone.trim() }), birthday }, "Profile updated."); }}>
           <div className="acct-avatar">
             <div className="acct-avatar-photo">
               {avatarUrl ? (
@@ -129,7 +134,7 @@ export default function AccountClient({
             </label>
           </div>
           <label>Full Name<input value={name} onChange={(e) => setName(e.target.value)} maxLength={100} placeholder="Your name" /></label>
-          <label>Phone Number<input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={11} inputMode="tel" placeholder="03XXXXXXXXX" /></label>
+          <label>Phone Number<input value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={11} inputMode="tel" placeholder="03XXXXXXXXX" readOnly={phoneLocked} /></label>
           <label>Date of Birthday<input type="date" value={birthday} onChange={(e) => setBirthday(e.target.value)} /></label>
           <button type="submit" className="btn btn-rust" disabled={saving}>{saving ? "Saving…" : "Update"}</button>
         </form>
@@ -139,13 +144,19 @@ export default function AccountClient({
         <div className="acct-list">
           {ordersError && <p className="acct-msg err">{ordersError}</p>}
           {!ordersError && !orders && <p className="acct-empty">Loading…</p>}
-          {orders && !orders.length && <p className="acct-empty">No orders yet. When you order with {phone}, it will show up here.</p>}
+          {orders && !orders.length && <p className="acct-empty">No orders yet. Orders you place while logged in to this account will show up here.</p>}
           {orders?.map((o) => (
             <div className="acct-order" key={o.order_no}>
               <div><strong>{o.order_no}</strong><span>{new Date(o.created_at).toLocaleDateString("en-GB", { day: "numeric", month: "short", year: "numeric" })} · {o.order_type}</span></div>
               <div><em className={"st st-" + o.status}>{o.status}</em><strong>Rs. {Number(o.total).toLocaleString()}</strong></div>
             </div>
           ))}
+        </div>
+      )}
+
+      {tab === "track" && (
+        <div className="pg-track is-embedded">
+          <TrackClient embedded initialMobile={/^03\d{9}$/.test(phone.trim()) ? phone.trim() : ""} />
         </div>
       )}
 

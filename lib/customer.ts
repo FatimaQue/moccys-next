@@ -19,11 +19,13 @@ export async function getCustomer(): Promise<Customer | null> {
   const user = data.user;
   if (!user || user.user_metadata?.role !== "customer") return null;
 
-  const hiddenEmail = /@customer\.example\.com$/i.test(user.email ?? ""); // WhatsApp accounts get a made-up one
+  const hidden = /^customer-(\d+)@customer\.example\.com$/i.exec(user.email ?? ""); // WhatsApp accounts get a made-up one
   return {
     id: user.id,
     name: String(user.user_metadata?.full_name ?? ""),
-    email: hiddenEmail ? null : (user.email?.toLowerCase() ?? null),
-    phone: normalizePhone(user.user_metadata?.phone),
+    email: hidden ? null : (user.email?.toLowerCase() ?? null),
+    // A WhatsApp account's number comes from its login email (set by the server after the WhatsApp check), never from
+    // user_metadata: customers can edit their own metadata, so a number read from there proves nothing.
+    phone: hidden ? normalizePhone(hidden[1]) : normalizePhone(user.user_metadata?.phone),
   };
 }
