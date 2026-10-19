@@ -8,6 +8,7 @@ import AdminDrivers, { type DriverInfo } from "./AdminDrivers";
 import AdminInventory from "./AdminInventory";
 import AdminReports from "./AdminReports";
 import AdminUsers from "./AdminUsers";
+import OrderSlip from "./OrderSlip";
 
 type Phase = "pending" | "preparing" | "ready" | "out" | "delivered";
 type Status = Phase | "rejected";
@@ -31,6 +32,8 @@ const KIND_COLOR: Record<string, string> = { new_order: "var(--rust)", accepted:
 const SEEN_KEY = "moccys-admin-last-seen-event";
 const TITLE = "mccoy's — Admin";
 const POLL_MS = 8000;
+const PRINTED_KEY = "moccys-admin-printed-orders";
+const AUTOPRINT_KEY = "moccys-admin-auto-print";
 
 const ago = (iso: string, now: number) => {
   const m = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 60000));
@@ -96,6 +99,26 @@ export default function AdminClient() {
   const [sound, setSound] = useState(true);
   const soundRef = useRef(sound);
   useEffect(() => { soundRef.current = sound; }, [sound]);
+  // kitchen printing: orders waiting for the printer (the first one is on the hidden slip), and whether new orders queue themselves
+  const [printQueue, setPrintQueue] = useState<Order[]>([]);
+  const [autoPrint, setAutoPrint] = useState(false);
+  const autoPrintRef = useRef(false);
+  const printed = useRef<Set<number> | null>(null); // ids already printed (or present before this browser first looked); null until the first load
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- the saved choice can only be read after mount
+    try { setAutoPrint(localStorage.getItem(AUTOPRINT_KEY) === "1"); } catch { /* storage blocked */ }
+  }, []);
+  useEffect(() => { autoPrintRef.current = autoPrint; }, [autoPrint]);
+  useEffect(() => {
+    if (!printQueue.length) return;
+    const t = setTimeout(() => { window.print(); setPrintQueue((q) => q.slice(1)); }, 150); // let the slip render first
+    return () => clearTimeout(t);
+  }, [printQueue]);
+  const toggleAutoPrint = () => {
+    const on = !autoPrint;
+    setAutoPrint(on);
+    try { localStorage.setItem(AUTOPRINT_KEY, on ? "1" : "0"); } catch { /* storage blocked */ }
+  };
   const [toast, setToast] = useState<string | null>(null);
   const toastTimer = useRef<ReturnType<typeof setTimeout>>(undefined);
   const [events, setEvents] = useState<Ev[]>([]);
@@ -119,6 +142,17 @@ export default function AdminClient() {
       if (!res.ok) throw new Error();
       const { orders } = (await res.json()) as { orders: Order[] };
       const t = Date.now();
+      // queue every pending order this browser has not printed yet; the first load only records what is already there
+      if (!printed.current) {
+        let saved: number[] = [];
+        try { saved = JSON.parse(localStorage.getItem(PRINTED_KEY) ?? "[]"); } catch { /* storage blocked or corrupt */ }
+        printed.current = new Set([...saved, ...orders.map((o) => o.dbId)]);
+      } else {
+        const fresh = orders.filter((o) => o.status === "pending" && !printed.current!.has(o.dbId)).reverse(); // oldest first
+        fresh.forEach((o) => printed.current!.add(o.dbId));
+        if (fresh.length && autoPrintRef.current) setPrintQueue((q) => [...q, ...fresh]);
+      }
+      try { localStorage.setItem(PRINTED_KEY, JSON.stringify([...printed.current].slice(-500))); } catch { /* storage blocked */ }
       setAll(orders.map((o) => {
         const m = pendingMoves.current.get(o.dbId);
         if (!m) return o;
@@ -312,6 +346,7 @@ export default function AdminClient() {
 
   return (
     <>
+      {printQueue[0] && <OrderSlip order={printQueue[0]} />}
       <div className="app">
         <div className={"side-overlay" + (menuOpen ? " open" : "")} onClick={() => setMenuOpen(false)} />
         <aside className={"sidebar" + (menuOpen ? " open" : "")} aria-label="Admin menu">
@@ -412,6 +447,8 @@ export default function AdminClient() {
                   <div className="sound-toggle">
                     Enable Sound Alerts
                     <div className={"switch" + (sound ? " on" : "")} onClick={() => setSound((s) => !s)}></div>
+                    Auto-print New Orders
+                    <div className={"switch" + (autoPrint ? " on" : "")} onClick={toggleAutoPrint}></div>
                   </div>
                 </div>
 
@@ -430,6 +467,7 @@ export default function AdminClient() {
                             <div className="card-top">
                               <span className="card-id">{o.id}</span>
                               {isNew(o) && <span className="card-tag">New</span>}
+                              <button className="signout" style={{ marginLeft: "auto" }} onClick={() => setPrintQueue((q) => [...q, o])}>Print</button>
                             </div>
                             <div className="order-cell">
                               {o.img && <Image className="order-thumb" src={o.img} alt={o.name ?? ""} width={36} height={36} />}

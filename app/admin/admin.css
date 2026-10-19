@@ -439,3 +439,20 @@
   .pg-admin .bell-panel{position:fixed;left:10px;right:10px;top:58px;width:auto;}
   .pg-admin .toast{left:14px;right:14px;bottom:16px;}
 }
+
+/* kitchen slip for the 80mm thermal printer: hidden on screen, the only thing shown when printing */
+.print-slip{display:none;}
+@media print{
+  @page{size:80mm auto;margin:0;}
+  body > *:not(.print-slip){display:none !important;}
+  html,body{background:#fff !important;margin:0;padding:0;}
+  .print-slip{display:block;width:72mm;margin:0 auto;padding:3mm 0;color:#000;font:13px/1.35 "Courier New",monospace;}
+  .print-slip h1{margin:0;text-align:center;font-size:18px;}
+  .print-slip p{margin:2px 0;}
+  .print-slip .slip-no{text-align:center;font-size:24px;font-weight:700;}
+  .print-slip .slip-type{text-align:center;font-size:16px;font-weight:700;}
+  .print-slip hr{border:0;border-top:1px dashed #000;margin:6px 0;}
+  .print-slip ul{list-style:none;margin:0;padding:0;}
+  .print-slip li{margin:3px 0;font-weight:600;}
+  .print-slip .slip-total{font-size:16px;font-weight:700;text-align:right;}
+}
