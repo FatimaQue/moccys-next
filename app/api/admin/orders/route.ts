@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getAdmin } from "@/lib/adminAuth";
-import { customCatalog } from "@/lib/menuShared";
+import { buildCatalog } from "@/lib/menuShared";
 import { getMenuState } from "@/lib/menuStore";
 import { addonCatalog, menuCatalog } from "@/lib/pricing";
 import { supabaseAdmin } from "@/lib/supabase/admin";
@@ -46,11 +46,12 @@ export async function GET(req: Request) {
   const hasMore = paged && rows.length > limit;
   const data = hasMore ? rows.slice(0, limit) : rows;
   const nextCursor = hasMore ? data[data.length - 1].id : null;
-  const custom = customCatalog((await getMenuState()).custom);
+  const state = await getMenuState();
+  const live = buildCatalog(state.custom, state.overrides);
   const orders = data.map((o) => {
     const main = o.order_items.filter((i) => !i.is_addon);
     const first = main[0] ?? o.order_items[0];
-    const img = first ? (menuCatalog.get(first.name) ?? custom.get(first.name) ?? addonCatalog.get(first.name))?.img : undefined;
+    const img = first ? (live.menu.get(first.name) ?? live.addons.get(first.name) ?? menuCatalog.get(first.name) ?? addonCatalog.get(first.name))?.img : undefined;
     const details = [
       ...o.order_items.map((i) => `${i.qty}x ${i.name}${i.is_addon ? " (add-on)" : ""}`),
       `${o.order_type === "delivery" ? "Delivery" : "Pick-up"} · ${o.mobile}`,

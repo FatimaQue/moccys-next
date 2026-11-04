@@ -1,10 +1,10 @@
 import { NextResponse } from "next/server";
 import { getCustomer } from "@/lib/customer";
 import { CLOSED_MESSAGE, isOpenNow } from "@/lib/hours";
-import { customCatalog } from "@/lib/menuShared";
+import { buildCatalog } from "@/lib/menuShared";
 import { getMenuState } from "@/lib/menuStore";
 import { logOrderEvent } from "@/lib/orderEvents";
-import { addonCatalog, DELIVERY_FEE, MIN_DELIVERY_ORDER, menuCatalog } from "@/lib/pricing";
+import { DELIVERY_FEE, MIN_DELIVERY_ORDER } from "@/lib/pricing";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
 type Body = {
@@ -63,12 +63,12 @@ export async function POST(req: Request) {
 
   // price every line from the server-side menu (built-in plus items added in inventory), not from what the browser sent
   const state = await getMenuState();
-  const custom = customCatalog(state.custom);
+  const { menu, addons } = buildCatalog(state.custom, state.overrides);
   const off = new Set(state.unavailable);
   const items: { name: string; price: number; qty: number; is_addon: boolean }[] = [];
   for (const l of lines) {
     const qty = Number(l.qty);
-    const entry = l.addon ? addonCatalog.get(String(l.name)) : (menuCatalog.get(String(l.name)) ?? custom.get(String(l.name)));
+    const entry = (l.addon ? addons : menu).get(String(l.name));
     if (!entry) return bad(`"${l.name}" is no longer available. Please remove it from your cart.`);
     if (!Number.isInteger(qty) || qty < 1) return bad(`Please check the quantity of "${l.name}".`);
     if (qty > 50) return bad(`You can order at most 50 of "${l.name}". Please lower the quantity.`);

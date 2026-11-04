@@ -25,7 +25,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         />
       </head>
       <body>
-        <MenuProvider custom={menu.custom} unavailable={menu.unavailable}>
+        <MenuProvider custom={menu.custom} unavailable={menu.unavailable} overrides={menu.overrides}>
           <CartProvider>{children}</CartProvider>
           <VisitTracker />
         </MenuProvider>

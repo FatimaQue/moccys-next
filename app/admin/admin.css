@@ -362,6 +362,10 @@
 .pg-admin .inv-switch{border:0;padding:0;flex:none;cursor:pointer;}
 .pg-admin .inv-del{background:none;border:0;padding:0;font:inherit;font-size:12px;font-weight:700;color:var(--rust);cursor:pointer;text-decoration:underline;}
 .pg-admin .inv-new{margin-left:8px;}
+.pg-admin .inv-edit{background:none;border:0;padding:0;font:inherit;font-size:12px;font-weight:700;color:var(--ink);cursor:pointer;text-decoration:underline;}
+.pg-admin .inv-submit{display:flex;gap:12px;flex-wrap:wrap;}
+.pg-admin .inv-submit .inv-cancel{background:transparent;border:1.5px solid var(--line);color:var(--muted);}
+.pg-admin .inv-variant input[readonly]{background:var(--paper-2);}
 
 .pg-admin .inv-form{margin-bottom:20px;}
 .pg-admin .inv-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px 16px;padding:18px 20px;}

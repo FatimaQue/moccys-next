@@ -2,18 +2,16 @@
 
 import Image from "next/image";
 import { useEffect, useRef, useState } from "react";
-import { ADDONS } from "@/data/addons";
 import type { MenuItem, Option } from "@/data/menu";
 import { trackEvent } from "@/lib/trackEvent";
 import { money, useCart } from "./CartProvider";
 import { useMenu } from "./MenuProvider";
 import "./ItemModal.css";
 
-const addonByName = Object.fromEntries(ADDONS.flatMap((g) => g.items).map((i) => [i.name, i]));
-
 export default function ItemModal({ item, onClose, onAdded }: { item: MenuItem; onClose: () => void; onAdded?: () => void }) {
   const { add } = useCart();
-  const { isAvailable } = useMenu();
+  const { isAvailable, addons: ADDONS } = useMenu();
+  const addonByName = Object.fromEntries(ADDONS.flatMap((g) => g.items).map((i) => [i.name, i]));
   const boxRef = useRef<HTMLDivElement>(null);
 
   // cards without options add themselves under their own name and price

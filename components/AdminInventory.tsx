@@ -1,14 +1,26 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-type Row = { name: string; priceLabel: string; img: string; available: boolean; customId?: number };
-type Group = { id: string; label: string; items: Row[] };
-type Inventory = { categories: Group[]; addons: Group[] };
 type Variant = { label: string; price: string };
+type Row = {
+  name: string; priceLabel: string; img: string; available: boolean;
+  kind: "builtin" | "custom" | "addon";
+  customId?: number;            // set for items added on this page
+  price: number; description: string; options?: { label: string; price: number }[];
+  hidden: boolean;              // a built-in item that was removed from the menu
+  edited: boolean;              // a built-in item whose price / photo / description was changed
+  canEdit: boolean;
+};
+type Group = { id: string; label: string; items: Row[] };
+type Inventory = { categories: Group[]; addons: Group[]; needsSetup?: boolean };
+type Editing = { row: Row; groupId: string };
 
 const EMPTY_FORM = { category: "", name: "", price: "", description: "", img: "" };
+
+const send = (method: string, body: object) =>
+  fetch("/api/admin/inventory", { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) }).catch(() => null);
 
 export default function AdminInventory() {
   const [inv, setInv] = useState<Inventory | null>(null);
@@ -17,6 +29,8 @@ export default function AdminInventory() {
   const [q, setQ] = useState("");
   const [group, setGroup] = useState("all");
   const [adding, setAdding] = useState(false);
+  const [editing, setEditing] = useState<Editing | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
 
   const load = useCallback(async () => {
     try {
@@ -37,25 +51,39 @@ export default function AdminInventory() {
 
   const flash = (msg: string) => { setNotice(msg); setTimeout(() => setNotice(null), 3500); };
 
+  // the form opens at the top of the page, so bring it into view when it opens
+  useEffect(() => {
+    if (adding || editing) formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }, [adding, editing]);
+
   // switch items on/off: the screen updates right away and the server call confirms it
   const setAvailable = async (names: string[], available: boolean) => {
     setInv((prev) => prev && ({
+      ...prev,
       categories: prev.categories.map((g) => ({ ...g, items: g.items.map((i) => (names.includes(i.name) ? { ...i, available } : i)) })),
       addons: prev.addons.map((g) => ({ ...g, items: g.items.map((i) => (names.includes(i.name) ? { ...i, available } : i)) })),
     }));
-    const res = await fetch("/api/admin/inventory", {
-      method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ names, available }),
-    }).catch(() => null);
+    const res = await send("PATCH", { names, available });
     if (!res?.ok) flash("Couldn't save that change. Please try again.");
     load();
   };
 
   const remove = async (row: Row) => {
-    if (!window.confirm(`Delete "${row.name}" from the menu? This can't be undone.`)) return;
-    const res = await fetch("/api/admin/inventory", {
-      method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: row.customId }),
-    }).catch(() => null);
-    flash(res?.ok ? `"${row.name}" deleted.` : "Couldn't delete that item.");
+    const added = row.kind === "custom";
+    const ask = added
+      ? `Delete "${row.name}" from the menu? This can't be undone.`
+      : `Remove "${row.name}" from the menu? Customers won't see it any more. You can restore it later from this page.`;
+    if (!window.confirm(ask)) return;
+    const res = await send("DELETE", added ? { id: row.customId } : { builtIn: row.name });
+    flash(res?.ok ? `"${row.name}" ${added ? "deleted" : "removed"}.` : "Couldn't remove that item.");
+    if (editing?.row.name === row.name) setEditing(null);
+    load();
+  };
+
+  const builtInAction = async (row: Row, action: "restore" | "reset") => {
+    if (action === "reset" && !window.confirm(`Put "${row.name}" back to its original price, photo and description?`)) return;
+    const res = await send("PUT", { builtIn: row.name, [action]: true });
+    flash(res?.ok ? (action === "restore" ? `"${row.name}" is back on the menu.` : `"${row.name}" reset.`) : "Couldn't save that change.");
     load();
   };
 
@@ -69,24 +97,37 @@ export default function AdminInventory() {
       .filter((g) => g.items.length);
   }, [inv, q, group]);
 
-  const everything = inv ? [...inv.categories, ...inv.addons].flatMap((g) => g.items) : [];
+  const everything = inv ? [...inv.categories, ...inv.addons].flatMap((g) => g.items).filter((i) => !i.hidden) : [];
   const offCount = everything.filter((i) => !i.available).length;
+
+  const closeForm = () => { setAdding(false); setEditing(null); };
 
   return (
     <section className="page">
       <div className="content-head">
         <div className="head-left"><h2>Inventory</h2></div>
-        <button className="inv-add" onClick={() => setAdding((a) => !a)}>{adding ? "Close" : "+ Add new item"}</button>
+        <button className="inv-add" onClick={() => { setEditing(null); setAdding((a) => !a); }}>{adding ? "Close" : "+ Add new item"}</button>
       </div>
 
       {notice && <p className="inv-notice" role="status">{notice}</p>}
 
-      {adding && inv && (
-        <AddItem
-          categories={inv.categories}
-          onDone={(msg) => { setAdding(false); flash(msg); load(); }}
-        />
+      {inv?.needsSetup && (
+        <p className="inv-notice" role="alert">
+          To edit or remove the built-in menu items, run the updated supabase/inventory.sql in the Supabase SQL Editor, then refresh this page.
+        </p>
       )}
+
+      <div ref={formRef}>
+        {inv && (adding || editing) && (
+          <ItemForm
+            key={editing ? editing.row.name : "new"}
+            categories={inv.categories}
+            editing={editing}
+            onCancel={closeForm}
+            onDone={(msg) => { closeForm(); flash(msg); load(); }}
+          />
+        )}
+      </div>
 
       {!inv ? (
         <div className="table-card"><p className="col-empty" style={{ padding: 30 }}>{error ?? "Loading inventory…"}</p></div>
@@ -109,31 +150,48 @@ export default function AdminInventory() {
 
           {groups.length === 0 && <div className="table-card"><p className="col-empty" style={{ padding: 30 }}>No items match.</p></div>}
 
-          {groups.map((g) => (
+          {groups.map((g) => {
+            const live = g.items.filter((i) => !i.hidden);
+            return (
             <div className="table-card rep-block" key={g.id}>
               <div className="table-head inv-head">
-                <h3>{g.label} <small>{g.items.filter((i) => i.available).length}/{g.items.length} available</small></h3>
+                <h3>{g.label} <small>{live.filter((i) => i.available).length}/{live.length} available</small></h3>
                 <div>
-                  <button onClick={() => setAvailable(g.items.map((i) => i.name), true)}>All available</button>
-                  <button onClick={() => setAvailable(g.items.map((i) => i.name), false)}>All unavailable</button>
+                  <button onClick={() => setAvailable(live.map((i) => i.name), true)}>All available</button>
+                  <button onClick={() => setAvailable(live.map((i) => i.name), false)}>All unavailable</button>
                 </div>
               </div>
               <div className="rep-scroll">
                 <table>
                   <tbody>
                     {g.items.map((i) => (
-                      <tr key={i.name} className={i.available ? undefined : "inv-off"}>
+                      <tr key={i.name} className={i.available && !i.hidden ? undefined : "inv-off"}>
                         <td className="inv-img"><Image src={i.img} alt="" width={44} height={44} className="order-thumb" /></td>
-                        <td><b>{i.name}</b>{i.customId && <span className="card-tag inv-new">Added</span>}</td>
+                        <td>
+                          <b>{i.name}</b>
+                          {i.kind === "custom" && <span className="card-tag inv-new">Added</span>}
+                          {i.edited && !i.hidden && <span className="card-tag inv-new">Edited</span>}
+                        </td>
                         <td>{i.priceLabel}</td>
                         <td className="inv-actions">
-                          {i.customId && <button className="inv-del" onClick={() => remove(i)}>Delete</button>}
-                          <span className="inv-state">{i.available ? "Available" : "Unavailable"}</span>
-                          <button
-                            role="switch" aria-checked={i.available} aria-label={`${i.name} available`}
-                            className={"switch inv-switch" + (i.available ? " on" : "")}
-                            onClick={() => setAvailable([i.name], !i.available)}
-                          />
+                          {i.hidden ? (
+                            <>
+                              <span className="inv-state">Removed</span>
+                              <button className="inv-link" onClick={() => builtInAction(i, "restore")}>Restore</button>
+                            </>
+                          ) : (
+                            <>
+                              {i.canEdit && <button className="inv-edit" onClick={() => { setAdding(false); setEditing({ row: i, groupId: g.id }); }}>Edit</button>}
+                              {i.edited && <button className="inv-del" onClick={() => builtInAction(i, "reset")}>Reset</button>}
+                              {(i.kind === "custom" || i.canEdit) && <button className="inv-del" onClick={() => remove(i)}>{i.kind === "custom" ? "Delete" : "Remove"}</button>}
+                              <span className="inv-state">{i.available ? "Available" : "Unavailable"}</span>
+                              <button
+                                role="switch" aria-checked={i.available} aria-label={`${i.name} available`}
+                                className={"switch inv-switch" + (i.available ? " on" : "")}
+                                onClick={() => setAvailable([i.name], !i.available)}
+                              />
+                            </>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -141,16 +199,29 @@ export default function AdminInventory() {
                 </table>
               </div>
             </div>
-          ))}
+            );
+          })}
         </>
       )}
     </section>
   );
 }
 
-function AddItem({ categories, onDone }: { categories: Group[]; onDone: (msg: string) => void }) {
-  const [f, setF] = useState({ ...EMPTY_FORM, category: categories[0]?.id ?? "" });
-  const [variants, setVariants] = useState<Variant[]>([]);
+// one form for adding an item and for editing one. Items added here can change everything; built-in items keep
+// their name and category (customers' carts and past orders refer to them by name) but can change price, photo and description.
+function ItemForm({ categories, editing, onCancel, onDone }: {
+  categories: Group[]; editing: Editing | null; onCancel: () => void; onDone: (msg: string) => void;
+}) {
+  const row = editing?.row;
+  const builtIn = !!row && row.kind !== "custom";       // built-in item or add-on
+  const fixedSizes = !!row && row.kind === "builtin" && !!row.options?.length; // sizes can have new prices but not be added or removed
+
+  const [f, setF] = useState({
+    ...EMPTY_FORM,
+    category: editing?.groupId ?? categories[0]?.id ?? "",
+    name: row?.name ?? "", price: row ? String(row.price) : "", description: row?.description ?? "", img: row?.img ?? "",
+  });
+  const [variants, setVariants] = useState<Variant[]>(row?.options?.map((o) => ({ label: o.label, price: String(o.price) })) ?? []);
   const [busy, setBusy] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -174,49 +245,57 @@ function AddItem({ categories, onDone }: { categories: Group[]; onDone: (msg: st
     e.preventDefault();
     setBusy(true);
     setError(null);
-    const res = await fetch("/api/admin/inventory", {
-      method: "POST", headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        category: f.category, name: f.name, price: Number(f.price), description: f.description, img: f.img,
-        options: variants.map((v) => ({ label: v.label, price: Number(v.price) })),
-      }),
-    }).catch(() => null);
+    const common = {
+      name: f.name, price: Number(f.price), description: f.description, img: f.img,
+      options: variants.map((v) => ({ label: v.label, price: Number(v.price) })),
+    };
+    const res = !row
+      ? await send("POST", { ...common, category: f.category })
+      : builtIn
+        ? await send("PUT", { ...common, builtIn: row.name })
+        : await send("PUT", { ...common, id: row.customId, category: f.category });
     const data = await res?.json().catch(() => ({}));
     setBusy(false);
-    if (res?.ok) onDone(`"${f.name}" added to the menu.`);
-    else setError(data?.error || "Couldn't add the item. Please try again.");
+    if (res?.ok) onDone(row ? `"${row.name}" updated.` : `"${f.name}" added to the menu.`);
+    else setError(data?.error || (row ? "Couldn't save the changes. Please try again." : "Couldn't add the item. Please try again."));
   };
 
   return (
     <form className="table-card inv-form" onSubmit={submit}>
-      <div className="table-head"><h3>New menu item</h3></div>
+      <div className="table-head"><h3>{row ? `Edit ${row.name}` : "New menu item"}</h3></div>
       <div className="inv-grid">
-        <label>Category
-          <select value={f.category} onChange={set("category")}>
-            {categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
-          </select>
-        </label>
+        {!builtIn && (
+          <label>Category
+            <select value={f.category} onChange={set("category")}>
+              {categories.map((c) => <option key={c.id} value={c.id}>{c.label}</option>)}
+            </select>
+          </label>
+        )}
         <label>Name
-          <input required maxLength={80} value={f.name} onChange={set("name")} placeholder="e.g. Bruce Wayne Burger" />
+          <input required maxLength={80} value={f.name} onChange={set("name")} disabled={builtIn} placeholder="e.g. Bruce Wayne Burger" />
         </label>
         <label>Price (Rs.)
           <input type="number" min={1} step={1} required={variants.length === 0} disabled={variants.length > 0} value={variants.length ? variants[0].price : f.price} onChange={set("price")} placeholder="e.g. 850" />
         </label>
-        <label className="inv-full">Description
-          <textarea maxLength={500} rows={2} value={f.description} onChange={set("description")} placeholder="What's in it?" />
-        </label>
+        {row?.kind !== "addon" && (
+          <label className="inv-full">Description
+            <textarea maxLength={500} rows={2} value={f.description} onChange={set("description")} placeholder="What's in it?" />
+          </label>
+        )}
 
-        <div className="inv-full">
-          <span className="inv-lab">Sizes / options <small>(optional: use when one item has several prices, e.g. Chicken / Beef)</small></span>
-          {variants.map((v, i) => (
-            <div className="inv-variant" key={i}>
-              <input required placeholder="Label, e.g. Large" value={v.label} onChange={(e) => setVariants((p) => p.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
-              <input required type="number" min={1} step={1} placeholder="Price" value={v.price} onChange={(e) => setVariants((p) => p.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))} />
-              <button type="button" onClick={() => setVariants((p) => p.filter((_, j) => j !== i))} aria-label="Remove option">×</button>
-            </div>
-          ))}
-          <button type="button" className="inv-link" onClick={() => setVariants((p) => [...p, { label: "", price: "" }])}>+ Add a size / option</button>
-        </div>
+        {(!builtIn || fixedSizes) && (
+          <div className="inv-full">
+            <span className="inv-lab">Sizes / options {!fixedSizes && <small>(optional: use when one item has several prices, e.g. Chicken / Beef)</small>}</span>
+            {variants.map((v, i) => (
+              <div className="inv-variant" key={i}>
+                <input required placeholder="Label, e.g. Large" value={v.label} readOnly={fixedSizes} onChange={(e) => setVariants((p) => p.map((x, j) => (j === i ? { ...x, label: e.target.value } : x)))} />
+                <input required type="number" min={1} step={1} placeholder="Price" value={v.price} onChange={(e) => setVariants((p) => p.map((x, j) => (j === i ? { ...x, price: e.target.value } : x)))} />
+                {!fixedSizes && <button type="button" onClick={() => setVariants((p) => p.filter((_, j) => j !== i))} aria-label="Remove option">×</button>}
+              </div>
+            ))}
+            {!fixedSizes && <button type="button" className="inv-link" onClick={() => setVariants((p) => [...p, { label: "", price: "" }])}>+ Add a size / option</button>}
+          </div>
+        )}
 
         <div className="inv-full">
           <span className="inv-lab">Photo</span>
@@ -228,7 +307,10 @@ function AddItem({ categories, onDone }: { categories: Group[]; onDone: (msg: st
         </div>
       </div>
       {error && <p className="signin-err" role="alert" style={{ padding: "0 20px" }}>{error}</p>}
-      <div className="inv-submit"><button type="submit" disabled={busy || uploading}>{busy ? "Adding…" : "Add to menu"}</button></div>
+      <div className="inv-submit">
+        <button type="submit" disabled={busy || uploading}>{busy ? "Saving…" : row ? "Save changes" : "Add to menu"}</button>
+        {row && <button type="button" className="inv-cancel" onClick={onCancel}>Cancel</button>}
+      </div>
     </form>
   );
 }

@@ -5,11 +5,10 @@ import Link from "next/link";
 import { useRef } from "react";
 import { deals } from "@/data/home";
 import type { MenuItem } from "@/data/menu";
-import { findMenuItem } from "@/data/menuLookup";
 import { useMenu } from "../MenuProvider";
 
 export default function Deals({ onPick }: { onPick: (item: MenuItem) => void }) {
-  const { isAvailable } = useMenu();
+  const { isAvailable, findItem } = useMenu();
   const rowRef = useRef<HTMLDivElement>(null);
 
   const scrollDeals = (dir: number) => {
@@ -33,30 +32,33 @@ export default function Deals({ onPick }: { onPick: (item: MenuItem) => void }) 
 
         <div className="deal-wrap">
           <div className="deal-row" ref={rowRef}>
-            {deals.map((d) => (
+            {deals.map((d) => {
+              const live = findItem(d.name); // the menu item, with any price / photo / description changed on the inventory page
+              return (
               <article className="deal-card" data-deal data-tilt key={d.name}>
                 <div className="deal-img">
                   <Image
-                    src={d.img} alt={d.imgAlt} fill sizes="(max-width:860px) 80vw, 400px"
+                    src={live?.img ?? d.img} alt={d.imgAlt} fill sizes="(max-width:860px) 80vw, 400px"
                     style={d.imgPos ? { objectPosition: d.imgPos } : undefined}
                   />
                   <span className={"burst" + (d.burst.hot ? " hot" : "")} aria-hidden="true">{d.burst.text}<b>{d.burst.strong}</b></span>
                 </div>
                 <div className="deal-body">
                   <h3>{d.name}</h3>
-                  <p>{d.desc}</p>
+                  <p>{live?.desc ?? d.desc}</p>
                   <div className="deal-foot">
-                    <span className="deal-price"><span>Rs.</span>{d.priceLabel}</span>
+                    <span className="deal-price"><span>Rs.</span>{live ? live.priceLabel.replace(/^Rs\.\s*/, "") : d.priceLabel}</span>
                     <button
                       className="btn btn-rust btn-sm cart-add" data-magnet
-                      disabled={!isAvailable(d.name)} onClick={() => onPick(findMenuItem(d.name)!)}
+                      disabled={!live || !isAvailable(d.name)} onClick={() => live && onPick(live)}
                     >
-                      {isAvailable(d.name) ? "Add to Cart" : "Unavailable"}
+                      {live && isAvailable(d.name) ? "Add to Cart" : "Unavailable"}
                     </button>
                   </div>
                 </div>
               </article>
-            ))}
+              );
+            })}
           </div>
 
           <div className="deal-arrows">
