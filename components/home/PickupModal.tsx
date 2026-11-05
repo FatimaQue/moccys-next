@@ -5,7 +5,7 @@ import { HOURS_LABEL, isOpenNow } from "@/lib/hours";
 import { gmapsSrc } from "./maps";
 
 const BRANCHES = [
-  { name: "I-8 Markaz Islamabad", lat: 33.6614, lng: 73.0836, hours: HOURS_LABEL },
+  { name: "Lower Ground Pakland Business Center, I-8 Markaz, Islamabad", lat: 33.6614, lng: 73.0836, hours: HOURS_LABEL },
 ];
 
 export default function PickupModal({ open, onClose }: { open: boolean; onClose: () => void }) {

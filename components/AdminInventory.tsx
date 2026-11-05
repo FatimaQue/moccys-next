@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 type Variant = { label: string; price: string };
 type Row = {
@@ -30,7 +30,7 @@ export default function AdminInventory() {
   const [group, setGroup] = useState("all");
   const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<Editing | null>(null);
-  const formRef = useRef<HTMLDivElement>(null);
+  const [confirm, setConfirm] = useState<{ title: string; body: string; ok: string; danger?: boolean; run: () => void } | null>(null);
 
   const load = useCallback(async () => {
     try {
@@ -51,10 +51,16 @@ export default function AdminInventory() {
 
   const flash = (msg: string) => { setNotice(msg); setTimeout(() => setNotice(null), 3500); };
 
-  // the form opens at the top of the page, so bring it into view when it opens
+  // popups close with Escape and stop the page behind them from scrolling
+  const popupOpen = adding || !!editing || !!confirm;
   useEffect(() => {
-    if (adding || editing) formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, [adding, editing]);
+    if (!popupOpen) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === "Escape") { setConfirm(null); setAdding(false); setEditing(null); } };
+    document.addEventListener("keydown", onKey);
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => { document.removeEventListener("keydown", onKey); document.body.style.overflow = prev; };
+  }, [popupOpen]);
 
   // switch items on/off: the screen updates right away and the server call confirms it
   const setAvailable = async (names: string[], available: boolean) => {
@@ -68,23 +74,37 @@ export default function AdminInventory() {
     load();
   };
 
-  const remove = async (row: Row) => {
+  const doRemove = async (row: Row) => {
     const added = row.kind === "custom";
-    const ask = added
-      ? `Delete "${row.name}" from the menu? This can't be undone.`
-      : `Remove "${row.name}" from the menu? Customers won't see it any more. You can restore it later from this page.`;
-    if (!window.confirm(ask)) return;
     const res = await send("DELETE", added ? { id: row.customId } : { builtIn: row.name });
     flash(res?.ok ? `"${row.name}" ${added ? "deleted" : "removed"}.` : "Couldn't remove that item.");
-    if (editing?.row.name === row.name) setEditing(null);
     load();
   };
 
-  const builtInAction = async (row: Row, action: "restore" | "reset") => {
-    if (action === "reset" && !window.confirm(`Put "${row.name}" back to its original price, photo and description?`)) return;
+  const remove = (row: Row) => {
+    const added = row.kind === "custom";
+    setConfirm({
+      title: added ? "Delete this item?" : "Remove this item?",
+      body: added
+        ? `"${row.name}" will be deleted from the menu. This can't be undone.`
+        : `"${row.name}" will disappear from the menu. You can restore it later from this page.`,
+      ok: added ? "Delete" : "Remove", danger: true,
+      run: () => doRemove(row),
+    });
+  };
+
+  const doBuiltInAction = async (row: Row, action: "restore" | "reset") => {
     const res = await send("PUT", { builtIn: row.name, [action]: true });
     flash(res?.ok ? (action === "restore" ? `"${row.name}" is back on the menu.` : `"${row.name}" reset.`) : "Couldn't save that change.");
     load();
+  };
+
+  const builtInAction = (row: Row, action: "restore" | "reset") => {
+    if (action === "restore") return doBuiltInAction(row, action);
+    setConfirm({
+      title: "Reset this item?", body: `"${row.name}" will go back to its original price, photo and description.`,
+      ok: "Reset", run: () => doBuiltInAction(row, action),
+    });
   };
 
   const groups = useMemo(() => {
@@ -117,17 +137,33 @@ export default function AdminInventory() {
         </p>
       )}
 
-      <div ref={formRef}>
-        {inv && (adding || editing) && (
-          <ItemForm
-            key={editing ? editing.row.name : "new"}
-            categories={inv.categories}
-            editing={editing}
-            onCancel={closeForm}
-            onDone={(msg) => { closeForm(); flash(msg); load(); }}
-          />
-        )}
-      </div>
+      {inv && (adding || editing) && (
+        <div className="inv-pop" onMouseDown={(e) => e.target === e.currentTarget && closeForm()}>
+          <div className="inv-pop-box" role="dialog" aria-modal="true">
+            <button className="inv-pop-x" aria-label="Close" onClick={closeForm}>×</button>
+            <ItemForm
+              key={editing ? editing.row.name : "new"}
+              categories={inv.categories}
+              editing={editing}
+              onCancel={closeForm}
+              onDone={(msg) => { closeForm(); flash(msg); load(); }}
+            />
+          </div>
+        </div>
+      )}
+
+      {confirm && (
+        <div className="inv-pop" onMouseDown={(e) => e.target === e.currentTarget && setConfirm(null)}>
+          <div className="inv-pop-box inv-pop-sm" role="alertdialog" aria-modal="true">
+            <h3>{confirm.title}</h3>
+            <p>{confirm.body}</p>
+            <div className="inv-pop-btns">
+              <button className="inv-btn ghost" onClick={() => setConfirm(null)}>Cancel</button>
+              <button className={"inv-btn " + (confirm.danger ? "danger" : "primary")} onClick={() => { confirm.run(); setConfirm(null); }}>{confirm.ok}</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {!inv ? (
         <div className="table-card"><p className="col-empty" style={{ padding: 30 }}>{error ?? "Loading inventory…"}</p></div>
@@ -177,13 +213,13 @@ export default function AdminInventory() {
                           {i.hidden ? (
                             <>
                               <span className="inv-state">Removed</span>
-                              <button className="inv-link" onClick={() => builtInAction(i, "restore")}>Restore</button>
+                              <button className="inv-btn edit" onClick={() => builtInAction(i, "restore")}>Restore</button>
                             </>
                           ) : (
                             <>
-                              {i.canEdit && <button className="inv-edit" onClick={() => { setAdding(false); setEditing({ row: i, groupId: g.id }); }}>Edit</button>}
-                              {i.edited && <button className="inv-del" onClick={() => builtInAction(i, "reset")}>Reset</button>}
-                              {(i.kind === "custom" || i.canEdit) && <button className="inv-del" onClick={() => remove(i)}>{i.kind === "custom" ? "Delete" : "Remove"}</button>}
+                              {i.canEdit && <button className="inv-btn edit" onClick={() => { setAdding(false); setEditing({ row: i, groupId: g.id }); }}>Edit</button>}
+                              {i.edited && <button className="inv-btn ghost" onClick={() => builtInAction(i, "reset")}>Reset</button>}
+                              {(i.kind === "custom" || i.canEdit) && <button className="inv-btn danger-o" onClick={() => remove(i)}>{i.kind === "custom" ? "Delete" : "Remove"}</button>}
                               <span className="inv-state">{i.available ? "Available" : "Unavailable"}</span>
                               <button
                                 role="switch" aria-checked={i.available} aria-label={`${i.name} available`}

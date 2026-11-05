@@ -11,7 +11,7 @@ export default async function AdminPage() {
   if (staff.role === "driver") redirect("/driver");
   return (
     <div className="pg-admin">
-      <AdminClient />
+      <AdminClient role={staff.role === "cashier" ? "cashier" : "admin"} displayName={staff.username ?? staff.name} />
     </div>
   );
 }

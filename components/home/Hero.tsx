@@ -13,7 +13,7 @@ const SLIDES: Slide[] = [
   {
     img: "/images/IMG_2996.JPG", alt: "Wood-fired pizza fresh from the oven", chip: "Now Open",
     lines: [[{ t: "mccoy's is now" }], [{ t: "open in islamabad", em: true }]],
-    sub: "Fresh out the oven on I-8 Markaz. Come say hello — we'd love to have you in.",
+    sub: "Fresh out the oven at Pakland Business Center, I-8 Markaz. Come say hello — we'd love to have you in.",
     cta: { href: "#footer", label: "Find the branch →", action: "pickup" },
   },
   {

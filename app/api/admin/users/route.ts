@@ -5,18 +5,7 @@ import { supabaseAdmin } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
 
-const DAYS = 30;
-
-type Stat = { visitors: number; views: number };
-type Stats = {
-  today: Stat; week: Stat; month: Stat;
-  daily: { day: string; visitors: number; views: number }[];
-  top_pages: { path: string; views: number; visitors: number }[];
-  devices: { device: string; visitors: number }[];
-  visitors: { visitor_id: string; first_seen: string; last_seen: string; views: number; device: string | null; user_id: string | null; last_path: string; ip: string | null }[];
-};
-
-// the customers who have an account, and (once supabase/page_views.sql has been run) who has been visiting the site
+// the customers who have an account (visitor tracking lives in /api/admin/visitors)
 export async function GET() {
   if (!(await getAdmin())) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   const db = supabaseAdmin();
@@ -67,14 +56,5 @@ export async function GET() {
     })
     .sort((a, b) => b.joined.localeCompare(a.joined));
 
-  // visitor stats come from one SQL function; if the table/function isn't there yet, the page shows the setup note
-  let stats: Stats | null = null;
-  const { data: s, error: sErr } = await db.rpc("visit_stats", { days: DAYS });
-  if (sErr) console.error("visit stats failed (has supabase/page_views.sql been run?)", sErr.message);
-  else stats = s as Stats;
-
-  const names = new Map(users.map((u) => [u.id, u.name !== "—" ? u.name : (u.email ?? u.phone ?? "Customer")]));
-  const visitors = (stats?.visitors ?? []).map((v) => ({ ...v, customer: v.user_id ? names.get(v.user_id) ?? "Customer" : null }));
-
-  return NextResponse.json({ users, stats: stats && { ...stats, visitors }, days: DAYS });
+  return NextResponse.json({ users });
 }

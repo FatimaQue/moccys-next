@@ -4,10 +4,12 @@ import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { supabaseBrowser } from "@/lib/supabase/browser";
+import AdminCashiers, { type CashierInfo } from "./AdminCashiers";
 import AdminDrivers, { type DriverInfo } from "./AdminDrivers";
 import AdminInventory from "./AdminInventory";
 import AdminReports from "./AdminReports";
 import AdminUsers from "./AdminUsers";
+import AdminVisitors from "./AdminVisitors";
 import OrderSlip from "./OrderSlip";
 
 type Phase = "pending" | "preparing" | "ready" | "out" | "delivered";
@@ -78,8 +80,8 @@ const PILL: Record<Status, [string, string]> = {
   out: ["amber", "Out for Delivery"], delivered: ["green", "Delivered"], rejected: ["rust", "Rejected"],
 };
 
-export default function AdminClient() {
-  const [page, setPage] = useState<"dashboard" | "orders" | "reports" | "inventory" | "drivers" | "users">("dashboard");
+export default function AdminClient({ role = "admin", displayName = "Admin" }: { role?: "admin" | "cashier"; displayName?: string }) {
+  const [page, setPage] = useState<"dashboard" | "orders" | "reports" | "inventory" | "drivers" | "cashiers" | "users" | "visitors">("dashboard");
   const [menuOpen, setMenuOpen] = useState(false); // the sidebar drawer on phones
   const router = useRouter();
   const [all, setAll] = useState<Order[]>([]);
@@ -91,6 +93,7 @@ export default function AdminClient() {
   const [rowsState, setRowsState] = useState<"loading" | "ready" | "error">("loading");
   const [loadingMore, setLoadingMore] = useState(false);
   const [drivers, setDrivers] = useState<Driver[]>([]);
+  const [cashiers, setCashiers] = useState<CashierInfo[]>([]);
   const [pick, setPick] = useState<Record<number, string>>({}); // driver chosen per order before "Send Out"
   // moves the admin just made that the server may not have caught up with yet (a poll already in flight can return the old status)
   const pendingMoves = useRef(new Map<number, { status: Status; driver?: string | null; at: number }>());
@@ -237,6 +240,16 @@ export default function AdminClient() {
   useEffect(() => {
     loadDrivers();
   }, [loadDrivers]);
+  const loadCashiers = useCallback(() => {
+    if (role !== "admin") return;
+    fetch("/api/admin/cashiers", { cache: "no-store" })
+      .then((r) => (r.ok ? r.json() : { cashiers: [] }))
+      .then((d: { cashiers: CashierInfo[] }) => setCashiers(d.cashiers))
+      .catch(() => {});
+  }, [role]);
+  useEffect(() => {
+    loadCashiers();
+  }, [loadCashiers]);
   const activeDrivers = useMemo(() => drivers.filter((d) => d.active), [drivers]);
 
   const handleAction = async (dbId: number, action: Action) => {
@@ -376,9 +389,19 @@ export default function AdminClient() {
               <svg viewBox="0 0 24 24"><circle cx="12" cy="8" r="4" /><path d="M4 21c0-4 3.6-7 8-7s8 3 8 7" /></svg>
               Riders
             </a>
+            {role === "admin" && (
+              <a className={"navlink" + (page === "cashiers" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); setPage("cashiers"); }}>
+                <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2" /><path d="M8 7V5a2 2 0 012-2h4a2 2 0 012 2v2" /><path d="M3 13h18" /></svg>
+                Cashiers
+              </a>
+            )}
             <a className={"navlink" + (page === "users" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); setPage("users"); }}>
               <svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3.5" /><path d="M2 20c0-3.6 3.1-6 7-6s7 2.4 7 6" /><path d="M16 4.6a3.5 3.5 0 010 6.8" /><path d="M18 14.4c2.4.8 4 2.6 4 5.6" /></svg>
               Users
+            </a>
+            <a className={"navlink" + (page === "visitors" ? " on" : "")} href="#" onClick={(e) => { e.preventDefault(); setMenuOpen(false); setPage("visitors"); }}>
+              <svg viewBox="0 0 24 24"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>
+              Visitors
             </a>
           </nav>
         </aside>
@@ -388,7 +411,7 @@ export default function AdminClient() {
             <button className="menu-btn" aria-label="Open menu" aria-expanded={menuOpen} onClick={() => setMenuOpen(true)}>
               <span></span><span></span><span></span>
             </button>
-            <h1>{page === "dashboard" ? "Dashboard — Live" : page === "reports" ? "Reports" : page === "inventory" ? "Inventory" : page === "drivers" ? "Riders" : page === "users" ? "Users" : "Orders"}</h1>
+            <h1>{page === "dashboard" ? "Dashboard — Live" : page === "reports" ? "Reports" : page === "inventory" ? "Inventory" : page === "drivers" ? "Riders" : page === "cashiers" ? "Cashiers" : page === "users" ? "Users" : page === "visitors" ? "Visitors" : "Orders"}</h1>
             <div className="topbar-right">
               <div className="bell-wrap">
                 <button className="bell" aria-label={unread ? `${unread} unread notifications` : "Notifications"} aria-expanded={bellOpen} onClick={openBell}>
@@ -424,8 +447,8 @@ export default function AdminClient() {
                 )}
               </div>
               <div className="profile">
-                <div className="avatar">M</div>
-                <span>M. Admin</span>
+                <div className="avatar">{displayName.charAt(0).toUpperCase()}</div>
+                <span>{displayName}</span>
                 <button className="signout" onClick={signOut}>Sign out</button>
               </div>
             </div>
@@ -436,10 +459,14 @@ export default function AdminClient() {
               <AdminInventory />
             ) : page === "drivers" ? (
               <AdminDrivers drivers={drivers} onChange={loadDrivers} />
+            ) : page === "cashiers" && role === "admin" ? (
+              <AdminCashiers cashiers={cashiers} onChange={loadCashiers} />
             ) : page === "reports" ? (
               <AdminReports />
             ) : page === "users" ? (
               <AdminUsers />
+            ) : page === "visitors" ? (
+              <AdminVisitors />
             ) : page === "dashboard" ? (
               <section className="page">
                 <div className="content-head">

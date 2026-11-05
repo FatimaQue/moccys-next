@@ -5,7 +5,7 @@ import {
 } from "@/lib/staffAuth";
 import { supabaseAdmin } from "@/lib/supabase/admin";
 
-const NOT_FOUND = "We couldn't find that phone number and name. Please check them, or ask the manager to add you.";
+const NOT_FOUND = "We couldn't find that phone number and username. Please check them, or ask the manager to add you.";
 
 // first-time setup: whoever registered this phone (name + number only, no username or password yet)
 // hands it to the admin or rider, who then chooses their own username and password once. The name is a
@@ -30,15 +30,19 @@ export async function POST(req: Request) {
   if (isLocked(staff)) {
     return NextResponse.json({ error: `Too many tries. Please wait ${LOCK_MINUTES} minutes and try again.` }, { status: 429 });
   }
-  if (normalizeName(body.name) !== normalizeName(staff.name)) {
-    await recordFailure(staff);
-    return NextResponse.json({ error: NOT_FOUND }, { status: 404 });
-  }
-
-  // a rider whose password was reset already has a username — keep it, don't ask them to pick a new
-  // one. Only someone claiming their account for the very first time needs to choose one now.
+  // accounts registered by username + phone: the username the manager entered is the proof. Older accounts
+  // that were registered by full name still prove themselves with that name and pick a username now.
   let username = staff.username;
-  if (!username) {
+  if (username) {
+    if (normalizeUsername(body.username) !== username) {
+      await recordFailure(staff);
+      return NextResponse.json({ error: NOT_FOUND }, { status: 404 });
+    }
+  } else {
+    if (normalizeName(body.name) !== normalizeName(staff.name)) {
+      await recordFailure(staff);
+      return NextResponse.json({ error: NOT_FOUND }, { status: 404 });
+    }
     username = normalizeUsername(body.username);
     if (!username) return NextResponse.json({ error: "Choose a username: 3-20 lowercase letters, numbers, dots, underscores or hyphens." }, { status: 400 });
   }

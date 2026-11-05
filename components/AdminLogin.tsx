@@ -55,12 +55,16 @@ export default function AdminLogin() {
       <form className="signin-card" onSubmit={submit}>
         <Image className="brand-logo" src="/images/Logo-01.png" alt="McCoy's" width={160} height={32} />
         <h1 className="display">{firstTime ? "Set up your account" : "Staff sign in"}</h1>
-        <p>{firstTime ? "Enter the phone number and name the manager registered, then choose a username and password." : "Sign in with your username and password."}</p>
+        <p>{firstTime ? "Enter the username and phone number the manager registered for you, then choose a password." : "Sign in with your username and password."}</p>
 
         {firstTime ? (
           <>
-            <label htmlFor="sName">Full name</label>
-            <input id="sName" type="text" autoComplete="name" required value={name} onChange={(e) => setName(e.target.value)} />
+            <label htmlFor="sUser">Username</label>
+            <input
+              id="sUser" type="text" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false}
+              placeholder="yourusername" minLength={3} maxLength={20} required
+              value={username} onChange={(e) => { setUsername(e.target.value); setError(null); }}
+            />
 
             <label htmlFor="sPhone">Phone number</label>
             <input
@@ -68,12 +72,8 @@ export default function AdminLogin() {
               value={phone} onChange={(e) => setPhone(e.target.value)}
             />
 
-            <label htmlFor="sUser">Choose a username</label>
-            <input
-              id="sUser" type="text" autoComplete="username" autoCapitalize="none" autoCorrect="off" spellCheck={false}
-              placeholder="yourusername" minLength={3} maxLength={20} required
-              value={username} onChange={(e) => { setUsername(e.target.value); setError(null); }}
-            />
+            <label htmlFor="sName">Full name <span style={{ opacity: 0.6 }}>(only if the manager registered you by name)</span></label>
+            <input id="sName" type="text" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} />
           </>
         ) : (
           <>
