@@ -96,7 +96,7 @@ export default function ItemModal({ item, onClose, onAdded }: { item: MenuItem; 
 
         <div className="pm-addons">
           <h4>Add-ons <span>(Optional)</span></h4>
-          {ADDONS.filter((g) => !g.only || g.only === item.name).map((g) => ({ ...g, items: g.items.filter((a) => isAvailable(a.name)) })).filter((g) => g.items.length).map((g) => (
+          {ADDONS.filter((g) => !g.only || [g.only].flat().includes(item.name)).map((g) => ({ ...g, items: g.items.filter((a) => isAvailable(a.name)) })).filter((g) => g.items.length).map((g) => (
             <div className="pm-agroup" key={g.group}>
               <h5>{g.group}</h5>
               <div className="pm-alist">

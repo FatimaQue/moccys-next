@@ -25,7 +25,7 @@ export const categories: Category[] = [
         "price": 1699,
         "img": "/images/student-duo.jpg",
         "imgAlt": "Two burgers with a basket of fries and two bottled drinks",
-        "desc": "2x Captain Chicken burgers, 1x plain fries and 2x 250ml drinks.",
+        "desc": "2x Captain Chicken burgers, 1x plain fries and 2x 350ml drinks.",
         "priceLabel": "Rs. 1,699",
         "imgPos": "center 64%",
         "burst": {
@@ -39,7 +39,7 @@ export const categories: Category[] = [
         "price": 1799,
         "img": "/images/hero-duo.jpg",
         "imgAlt": "Two burgers with a basket of fries, a Coke can and a Sprite can",
-        "desc": "1x Captain Chicken burger, 1x Flashpoint Chicken burger, 1x plain fries and 1x 250ml drink.",
+        "desc": "1x Captain Chicken burger, 1x Flashpoint Chicken burger, 1x plain fries and 2x 350ml drinks.",
         "priceLabel": "Rs. 1,799",
         "imgPos": "center 62%",
         "burst": {
@@ -50,11 +50,11 @@ export const categories: Category[] = [
       },
       {
         "name": "Trio Attack",
-        "price": 2599,
+        "price": 2399,
         "img": "/images/trio-attack.jpg",
         "imgAlt": "Three burgers on a wooden board with fries, a Coke can and a Sprite can",
-        "desc": "3x Captain Chicken burger, 1x plain fries and 2x 250ml drinks.",
-        "priceLabel": "Rs. 2,599",
+        "desc": "3x Captain Chicken burgers, 1x plain fries and 3x 350ml drinks.",
+        "priceLabel": "Rs. 2,399",
         "imgPos": "center 60%",
         "burst": {
           "hot": false,
@@ -63,11 +63,11 @@ export const categories: Category[] = [
         }
       },
       {
-        "name": "Student Duo 2",
+        "name": "Student Pizza Duo",
         "price": 2599,
         "img": "/images/student-duo-2.jpg",
         "imgAlt": "A burger, a bowl of fries and a pizza on wooden boards with two Coke cans",
-        "desc": "1x Medium Fajita Fury, 1x Captain Chicken burger, 1x plain fries and 1x 250ml drink.",
+        "desc": "1x Medium Fajita Fury, 1x Captain Chicken burger, 1x plain fries and 3x 350ml drinks.",
         "priceLabel": "Rs. 2,599",
         "burst": {
           "hot": false,
@@ -80,7 +80,7 @@ export const categories: Category[] = [
         "price": 3999,
         "img": "/images/family-heroes.jpg",
         "imgAlt": "Four burgers on a wooden board with fries and a 1.5 litre bottle of Coca-Cola",
-        "desc": "3x Captain Chicken burgers, 2x plain fries and 1x 1.5L drink.",
+        "desc": "5x Captain Chicken burgers, 2x plain fries and 1x 1.5L drink.",
         "priceLabel": "Rs. 3,999",
         "imgPos": "center 55%",
         "burst": {
@@ -90,11 +90,11 @@ export const categories: Category[] = [
         }
       },
       {
-        "name": "McCoy's Mega 5",
+        "name": "McCoy's Mega",
         "price": 4999,
         "img": "/images/mccoys-mega.jpg",
         "imgAlt": "A pizza, three burgers and two baskets of fries on a wooden table with a 1.5 litre Coca-Cola bottle",
-        "desc": "1x Large Fajita Fury, 2x Captain Chicken burger, 1x Supreme Chicken burger, 2x plain fries and 1x 1.5L drink.",
+        "desc": "1x Large Fajita Fury, 2x Captain Chicken burgers, 1x Wonder Chicken burger, 2x plain fries and 1x 1.5L drink.",
         "priceLabel": "Rs. 4,999",
         "imgPos": "center 50%",
         "burst": {
@@ -310,51 +310,51 @@ export const categories: Category[] = [
     "items": [
       {
         "name": "Pepperoni Punch",
-        "price": 800,
+        "price": 950,
         "img": "/images/pepperoni-pizza.jpg",
         "imgAlt": "Pepperoni pizza on a wooden board",
         "desc": "Loaded pepperoni, mozzarella and our signature tomato base.",
-        "priceLabel": "Rs. 800 / 900",
+        "priceLabel": "Rs. 950 – 2,150",
         "options": [
           {
             "label": "Small",
             "name": "Pepperoni Punch (Small)",
-            "price": 800
+            "price": 950
           },
           {
             "label": "Medium",
             "name": "Pepperoni Punch (Medium)",
-            "price": 800
+            "price": 1650
           },
           {
             "label": "Large",
             "name": "Pepperoni Punch (Large)",
-            "price": 900
+            "price": 2150
           }
         ]
       },
       {
         "name": "Fajita Fury",
-        "price": 650,
+        "price": 950,
         "img": "/images/supreme-pizza.jpg",
         "imgAlt": "Loaded supreme pizza with mixed toppings",
         "desc": "Peppers, onions and a hearty mix of toppings on a hand-stretched base.",
-        "priceLabel": "Rs. 650 / 850",
+        "priceLabel": "Rs. 950 – 2,150",
         "options": [
           {
             "label": "Small",
             "name": "Fajita Fury (Small)",
-            "price": 650
+            "price": 950
           },
           {
             "label": "Medium",
             "name": "Fajita Fury (Medium)",
-            "price": 650
+            "price": 1650
           },
           {
             "label": "Large",
             "name": "Fajita Fury (Large)",
-            "price": 850
+            "price": 2150
           }
         ]
       },
@@ -364,7 +364,7 @@ export const categories: Category[] = [
         "img": "/images/veggie-pizza.jpg",
         "imgAlt": "Pizza with seasoned meat, green peppers, onion and black olives on a wooden board",
         "desc": "Seasoned meat, green peppers, onion and black olives under a blanket of melted mozzarella.",
-        "priceLabel": "Rs. 950",
+        "priceLabel": "Rs. 950 – 2,150",
         "options": [
           {
             "label": "Small",
@@ -374,63 +374,63 @@ export const categories: Category[] = [
           {
             "label": "Medium",
             "name": "Tikka Titan (Medium)",
-            "price": 950
+            "price": 1650
           },
           {
             "label": "Large",
             "name": "Tikka Titan (Large)",
-            "price": 950
+            "price": 2150
           }
         ]
       },
       {
         "name": "Supreme",
-        "price": 890,
+        "price": 950,
         "img": "/images/olive-pizza.jpg",
         "imgAlt": "Chicken pizza with black olives and green, red and yellow peppers on a wooden board",
         "desc": "Chicken chunks with black olives, green, red and yellow peppers and onion under melted mozzarella.",
-        "priceLabel": "Rs. 890 / 1,300",
+        "priceLabel": "Rs. 950 – 2,450",
         "options": [
           {
             "label": "Small",
             "name": "Supreme (Small)",
-            "price": 890
+            "price": 950
           },
           {
             "label": "Medium",
             "name": "Supreme (Medium)",
-            "price": 890
+            "price": 1850
           },
           {
             "label": "Large",
             "name": "Supreme (Large)",
-            "price": 1300
+            "price": 2450
           }
         ]
       },
       {
         "name": "Beef Blast",
-        "price": 850,
+        "price": 950,
         "img": "/images/beef-blast-pizza.jpg",
         "imgAlt": "Hand holding a cheesy pizza slice with beef, peppers and black olives",
         "desc": "Seasoned beef, peppers and melted mozzarella on our signature tomato base.",
-        "priceLabel": "Rs. 850",
+        "priceLabel": "Rs. 950 – 2,150",
         "imgPos": "50% 65%",
         "options": [
           {
             "label": "Small",
             "name": "Beef Blast (Small)",
-            "price": 850
+            "price": 950
           },
           {
             "label": "Medium",
             "name": "Beef Blast (Medium)",
-            "price": 850
+            "price": 1650
           },
           {
             "label": "Large",
             "name": "Beef Blast (Large)",
-            "price": 850
+            "price": 2150
           }
         ]
       }
@@ -468,20 +468,20 @@ export const categories: Category[] = [
     "items": [
       {
         "name": "Chocolate Brownie",
-        "price": 300,
+        "price": 450,
         "img": "/images/brownie.JPG",
         "imgAlt": "Rich chocolate brownie",
         "desc": "A rich, fudgy chocolate brownie — the perfect way to finish.",
-        "priceLabel": "Rs. 300",
+        "priceLabel": "Rs. 450",
         "imgPos": "50% 88%"
       },
       {
         "name": "Chocolate Chip Cookie",
-        "price": 250,
+        "price": 350,
         "img": "/images/cookie.jpg",
         "imgAlt": "Chocolate chip cookies cooling on a wire rack",
         "desc": "A soft, chewy cookie loaded with melty chocolate chips.",
-        "priceLabel": "Rs. 250"
+        "priceLabel": "Rs. 350"
       }
     ]
   },
@@ -489,14 +489,14 @@ export const categories: Category[] = [
     "id": "golden-guardian",
     "label": "Golden Guardian",
     "title": "Golden Guardian",
-    "subtitle": "Whole roast chicken with spiced rice, naan and house dips.",
+    "subtitle": "Peruvian-style rotisserie chicken with Mediterranean rice, roti, salad, potato wedges, garlic sauce and tomato salata.",
     "items": [
       {
         "name": "Golden Guardian",
         "price": 950,
         "img": "/images/chicken_rice.JPG",
         "imgAlt": "Whole roast chicken with spiced rice and naan",
-        "desc": "Whole roast chicken with spiced rice, naan and house dips.",
+        "desc": "Peruvian-style rotisserie chicken served with Mediterranean rice, roti, salad, potato wedges, garlic sauce and tomato salata.",
         "priceLabel": "Rs. 950 – 2,250",
         "options": [
           {
@@ -535,6 +535,30 @@ export const categories: Category[] = [
     ]
   },
   {
+    "id": "soup-tea",
+    "label": "Soup & Tea",
+    "title": "Soup & Tea",
+    "subtitle": "Something warm, served hot.",
+    "items": [
+      {
+        "name": "McCoy's Soup",
+        "price": 350,
+        "img": "/images/mccoys-soup.jpg",
+        "imgAlt": "A bowl of creamy orange soup garnished with parsley",
+        "desc": "Our hot, creamy house soup, served steaming.",
+        "priceLabel": "Rs. 350"
+      },
+      {
+        "name": "McCoy's Tea",
+        "price": 150,
+        "img": "/images/mccoys-tea.jpg",
+        "imgAlt": "A cup of milk tea with the McCoy's logo",
+        "desc": "Fresh, hot milk tea in our signature McCoy's cup.",
+        "priceLabel": "Rs. 150"
+      }
+    ]
+  },
+  {
     "id": "drinks",
     "label": "Drinks",
     "title": "Drinks",
@@ -542,36 +566,36 @@ export const categories: Category[] = [
     "items": [
       {
         "name": "Blue Beetle",
-        "price": 300,
+        "price": 650,
         "img": "/images/blue-beatle.jpg",
         "imgAlt": "Blue Beetle cold drink",
         "desc": "A vivid blue, citrus-fizz cooler served ice cold.",
-        "priceLabel": "Rs. 300"
+        "priceLabel": "Rs. 650"
       },
       {
         "name": "Green Lantern",
-        "price": 300,
+        "price": 650,
         "img": "/images/green-lantern.jpg",
         "imgAlt": "Green Lantern cold drink",
         "desc": "A zesty green apple-mint cooler, served ice cold.",
-        "priceLabel": "Rs. 300"
+        "priceLabel": "Rs. 650"
       },
       {
         "name": "Peach Ice Tea",
-        "price": 280,
+        "price": 650,
         "img": "/images/peach-ice-tea.jpg",
         "imgAlt": "Peach Ice Tea",
         "desc": "Chilled black tea with sweet peach and a hint of lemon.",
-        "priceLabel": "Rs. 280",
+        "priceLabel": "Rs. 650",
         "imgPos": "center 78%"
       },
       {
         "name": "Cold Coffee",
-        "price": 350,
+        "price": 650,
         "img": "/images/cold-coffee.jpg",
         "imgAlt": "Cold Coffee",
         "desc": "Rich, chilled coffee blended smooth and creamy.",
-        "priceLabel": "Rs. 350",
+        "priceLabel": "Rs. 650",
         "imgPos": "center 78%"
       }
     ]

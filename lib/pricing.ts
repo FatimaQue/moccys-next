@@ -1,7 +1,7 @@
 import { ADDONS } from "@/data/addons";
 import { categories } from "@/data/menu";
 
-export const DELIVERY_FEE = 59;
+export const DELIVERY_FEE = 100;
 // delivery orders must come to at least this much in food (before the delivery fee); pick-up has no minimum
 export const MIN_DELIVERY_ORDER = 500;
 

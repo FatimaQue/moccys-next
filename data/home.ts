@@ -12,7 +12,7 @@ export type ShowItem = {
 export const deals: Deal[] = [
   {
     "name": "Student Duo",
-    "desc": "2x Captain Chicken burgers, 1x plain fries and 2x 250ml drinks.",
+    "desc": "2x Captain Chicken burgers, 1x plain fries and 2x 350ml drinks.",
     "price": 1699,
     "priceLabel": "1,699",
     "img": "/images/student-duo.jpg",
@@ -27,7 +27,7 @@ export const deals: Deal[] = [
   },
   {
     "name": "Hero Duo",
-    "desc": "1x Captain Chicken burger, 1x Flashpoint Chicken burger, 1x plain fries and 1x 250ml drink.",
+    "desc": "1x Captain Chicken burger, 1x Flashpoint Chicken burger, 1x plain fries and 2x 350ml drinks.",
     "price": 1799,
     "priceLabel": "1,799",
     "img": "/images/hero-duo.jpg",
@@ -42,9 +42,9 @@ export const deals: Deal[] = [
   },
   {
     "name": "Trio Attack",
-    "desc": "3x Captain Chicken burger, 1x plain fries and 2x 250ml drinks.",
-    "price": 2599,
-    "priceLabel": "2,599",
+    "desc": "3x Captain Chicken burgers, 1x plain fries and 3x 350ml drinks.",
+    "price": 2399,
+    "priceLabel": "2,399",
     "img": "/images/trio-attack.jpg",
     "imgAlt": "Three burgers on a wooden board with fries, a Coke can and a Sprite can",
     "burst": {
@@ -56,8 +56,8 @@ export const deals: Deal[] = [
     "cartImg": "/images/trio-attack.jpg"
   },
   {
-    "name": "Student Duo 2",
-    "desc": "1x Medium Fajita Fury, 1x Captain Chicken burger, 1x plain fries and 1x 250ml drink.",
+    "name": "Student Pizza Duo",
+    "desc": "1x Medium Fajita Fury, 1x Captain Chicken burger, 1x plain fries and 3x 350ml drinks.",
     "price": 2599,
     "priceLabel": "2,599",
     "img": "/images/student-duo-2.jpg",
@@ -71,7 +71,7 @@ export const deals: Deal[] = [
   },
   {
     "name": "Family Heroes",
-    "desc": "3x Captain Chicken burgers, 2x plain fries and 1x 1.5L drink.",
+    "desc": "5x Captain Chicken burgers, 2x plain fries and 1x 1.5L drink.",
     "price": 3999,
     "priceLabel": "3,999",
     "img": "/images/family-heroes.jpg",
@@ -85,8 +85,8 @@ export const deals: Deal[] = [
     "cartImg": "/images/family-heroes.jpg"
   },
   {
-    "name": "McCoy's Mega 5",
-    "desc": "1x Large Fajita Fury, 2x Captain Chicken burger, 1x Supreme Chicken burger, 2x plain fries and 1x 1.5L drink.",
+    "name": "McCoy's Mega",
+    "desc": "1x Large Fajita Fury, 2x Captain Chicken burgers, 1x Wonder Chicken burger, 2x plain fries and 1x 1.5L drink.",
     "price": 4999,
     "priceLabel": "4,999",
     "img": "/images/mccoys-mega.jpg",
@@ -250,6 +250,13 @@ export const homeCategories: HomeCategory[] = [
     "imgAlt": "Whole roast chicken with spiced rice and naan",
     "zoomed": true,
     "imgPos": "56% 50%"
+  },
+  {
+    "id": "soup-tea",
+    "title": "Soup & Tea",
+    "img": "/images/mccoys-tea.jpg",
+    "imgAlt": "A cup of McCoy's milk tea",
+    "zoomed": false
   },
   {
     "id": "drinks",

@@ -25,13 +25,20 @@ export type OverrideRow = {
 
 export const money = (n: number) => "Rs. " + n.toLocaleString("en-US");
 
+// "Rs. 650 / 850" for one or two prices, a short range ("Rs. 950 – 2,150") for more so it fits on the card
+export function priceLabel(prices: number[]): string {
+  const u = [...new Set(prices)];
+  const f = (n: number) => n.toLocaleString("en-US");
+  return u.length > 2 ? `Rs. ${f(Math.min(...u))} – ${f(Math.max(...u))}` : "Rs. " + u.map(f).join(" / ");
+}
+
 export const customToMenuItem = (r: CustomRow): MenuItem => {
   const opts = r.options?.length ? r.options.map((o) => ({ label: o.label, name: `${r.name} (${o.label})`, price: o.price })) : undefined;
   const prices = opts ? opts.map((o) => o.price) : [r.price];
   return {
     name: r.name,
     price: prices[0],
-    priceLabel: "Rs. " + [...new Set(prices)].map((p) => p.toLocaleString("en-US")).join(" / "),
+    priceLabel: priceLabel(prices),
     img: r.img || "/images/Logo-01.png",
     imgAlt: r.name,
     desc: r.description ?? "",
@@ -50,7 +57,7 @@ function overrideItem(item: MenuItem, o?: OverrideRow): MenuItem {
     if (o.option_prices) {
       next.options = item.options.map((opt) => ({ ...opt, price: o.option_prices?.[opt.label] ?? opt.price }));
       next.price = next.options[0].price;
-      next.priceLabel = "Rs. " + [...new Set(next.options.map((x) => x.price))].map((p) => p.toLocaleString("en-US")).join(" / ");
+      next.priceLabel = priceLabel(next.options.map((x) => x.price));
     }
   } else if (o.price) {
     next.price = o.price;
